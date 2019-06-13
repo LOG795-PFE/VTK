@@ -61,6 +61,7 @@ else ()
   add_example(Modelling/Cxx)
   add_example(MultiBlock/Cxx)
   add_example(ParallelProcessing/Generic/Cxx)
+  add_exemple(ShaderAlgorithm/Cxx)
 
   add_example(Modules/UsingVTK)
   add_example(Modules/Wrapping)

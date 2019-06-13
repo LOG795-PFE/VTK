@@ -14,8 +14,14 @@ set(classes
   vtkFramebufferPass
   vtkGaussianBlurPass
   vtkGenericOpenGLRenderWindow
+  vtkGPUAbstractImageFilter
+  vtkGPUImageGaussianFilter
+  vtkGPUImageData
+  vtkGPUImageToImageFilter
+  vtkGPUSimpleImageFilter
   vtkHiddenLineRemovalPass
   vtkImageProcessingPass
+  vtkImageToGPUImageFilter
   vtkLightingMapPass
   vtkLightsPass
   vtkOpaquePass
