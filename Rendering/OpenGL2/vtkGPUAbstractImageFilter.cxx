@@ -360,16 +360,21 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
   ostate->vtkglDisable(GL_DEPTH_TEST);
 
   // Upload the value of user-defined uniforms in the program
+  this->UpdateCustomUniformsVertex();
   vtkOpenGLUniforms* vertexUniforms = vtkOpenGLUniforms::SafeDownCast(this->ShaderProperty->GetVertexCustomUniforms());
   if (vertexUniforms)
   {
     vertexUniforms->SetUniforms(this->ShaderProgram);
   }
+
+  this->UpdateCustomUniformsFragment();
   vtkOpenGLUniforms* fragmentUniforms = vtkOpenGLUniforms::SafeDownCast(this->ShaderProperty->GetFragmentCustomUniforms());
   if (fragmentUniforms)
   {
     fragmentUniforms->SetUniforms(this->ShaderProgram);
   }
+
+  this->UpdateCustomUniformsGeometry();
   vtkOpenGLUniforms* geometryUniforms = vtkOpenGLUniforms::SafeDownCast(this->ShaderProperty->GetGeometryCustomUniforms());
   if (geometryUniforms)
   {

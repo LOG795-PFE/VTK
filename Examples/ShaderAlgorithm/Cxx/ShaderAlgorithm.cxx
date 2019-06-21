@@ -21,6 +21,8 @@
 #include <string>
 #include <fstream>
 
+#include <vtksys/CommandLineArguments.hxx>
+
 #include <vtkNrrdReader.h>
 #include <vtkMetaImageWriter.h>
 
@@ -29,6 +31,27 @@ int main(int argc, char* argv[])
   if (argc < 1)
   {
     return 0;
+  }
+
+  std::string inputFile;
+  std::string outputFile;
+
+  vtksys::CommandLineArguments cmdargs;
+  cmdargs.Initialize(argc, argv);
+  cmdargs.AddArgument("--input-file", vtksys::CommandLineArguments::EQUAL_ARGUMENT, &inputFile, "Input file");
+  cmdargs.AddArgument("--output-file", vtksys::CommandLineArguments::EQUAL_ARGUMENT, &outputFile, "Output file");
+
+  if (!cmdargs.Parse())
+  {
+    std::cerr << "Problem parsing arguments" << std::endl;
+    std::cout << "Help: " << cmdargs.GetHelp() << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (inputFile.empty())
+  {
+    std::cerr << "input-file required";
+    return EXIT_FAILURE;
   }
 
   // Shader for generating a box
@@ -70,9 +93,15 @@ void main(void) {
 )";
 
   vtkNew<vtkNrrdReader> reader;
-  reader->SetFileName(argv[1]);
+  reader->SetFileName(inputFile.c_str());
   reader->Update();
   vtkImageData* inputImage = reader->GetOutput();
+
+  if (!inputImage)
+  {
+    std::cerr << "Could not find input image: " << inputFile << std::endl;
+    return EXIT_FAILURE;
+  }
 
   vtkNew<vtkImageToGPUImageFilter> inputConvert;
   inputConvert->SetInputDataObject(inputImage);
@@ -99,6 +128,14 @@ void main(void) {
   outputConvert->SetInputConnection(shaderAlgorithm->GetOutputPort());
   outputConvert->Update();
   vtkSmartPointer<vtkImageData> outputImage = outputConvert->GetOutput();
+
+  if (!outputFile.empty())
+  {
+    vtkNew< vtkMetaImageWriter> writer;
+    writer->SetFileName(outputFile.c_str());
+    writer->SetInputData(outputImage);
+    writer->Write();
+  }
 
   // Visualize
   vtkSmartPointer<vtkImageViewer2> imageViewer =

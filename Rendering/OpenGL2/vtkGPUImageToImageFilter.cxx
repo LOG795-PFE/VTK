@@ -230,6 +230,7 @@ int vtkGPUImageToImageFilter::Execute(vtkGPUImageData* inputGPUImage, vtkImageDa
   if (!this->RenderWindow)
   {
     vtkErrorMacro("Render context not set");
+    return 0;
   }
 
   vtkIdType textureDataType = inputGPUImage->GetScalarType();

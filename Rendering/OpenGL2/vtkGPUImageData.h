@@ -129,8 +129,6 @@ protected:
   vtkGPUImageData();
   ~vtkGPUImageData() override;
 
-  void SetTextureObject(vtkTextureObject* textureObject);
-
   vtkSmartPointer<vtkTextureObject> TextureObject;
 
   double Origin[3];

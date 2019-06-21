@@ -191,6 +191,11 @@ public:
 
   void UpdateTextureUniforms(std::vector<vtkGPUImageData*> inputTextures, vtkGPUImageData* outputTexture);
 
+  virtual void UpdateCustomUniformsVertex() {};
+  virtual void UpdateCustomUniformsFragment() {};
+  virtual void UpdateCustomUniformsGeometry() {};
+
+
   // see vtkAlgorithm for docs.
   int FillInputPortInformation(int, vtkInformation*) override;
   int FillOutputPortInformation(int, vtkInformation*) override;
