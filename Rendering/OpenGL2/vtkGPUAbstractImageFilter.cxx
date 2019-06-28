@@ -197,12 +197,6 @@ int vtkGPUAbstractImageFilter::RequestInformation(
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
-  vtkInformation* outInfo = outputVector->GetInformationObject(0);
-  if (this->OutputExtentSpecified)
-  {
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), this->OutputExtent, 6);
-  }
-
   for (int idx = 0; idx < this->GetNumberOfInputConnections(0); ++idx)
   {
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(idx);
@@ -211,10 +205,21 @@ int vtkGPUAbstractImageFilter::RequestInformation(
       this->SetRenderWindow(vtkOpenGLRenderWindow::SafeDownCast(inInfo->Get(vtkGPUImageData::CONTEXT_OBJECT())));
     }
   }
-  if (!this->RenderWindow && outInfo && outInfo->Has(vtkGPUImageData::CONTEXT_OBJECT()))
+
+  for (int i = 0; i < this->GetNumberOfOutputPorts(); ++i)
   {
-    this->SetRenderWindow(vtkOpenGLRenderWindow::SafeDownCast(outInfo->Get(vtkGPUImageData::CONTEXT_OBJECT())));
+    vtkInformation* outInfo = outputVector->GetInformationObject(i);
+    if (this->OutputExtentSpecified)
+    {
+      outInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), this->OutputExtent, 6);
+    }
+
+    if (!this->RenderWindow && outInfo && outInfo->Has(vtkGPUImageData::CONTEXT_OBJECT()))
+    {
+      this->SetRenderWindow(vtkOpenGLRenderWindow::SafeDownCast(outInfo->Get(vtkGPUImageData::CONTEXT_OBJECT())));
+    }
   }
+  
 
   if (!this->RenderWindow)
   {
@@ -234,9 +239,13 @@ int vtkGPUAbstractImageFilter::RequestInformation(
       }
     }
 
-    if (outInfo)
+    for (int i = 0; i < this->GetNumberOfOutputPorts(); ++i)
     {
-      outInfo->Set(vtkGPUImageData::CONTEXT_OBJECT(), this->RenderWindow);
+      vtkInformation* outInfo = outputVector->GetInformationObject(i);
+      if (outInfo)
+      {
+        outInfo->Set(vtkGPUImageData::CONTEXT_OBJECT(), this->RenderWindow);
+      }
     }
   }
 
@@ -248,13 +257,16 @@ int vtkGPUAbstractImageFilter::RequestDataObject(vtkInformation* vtkNotUsed(requ
   vtkInformationVector** vtkNotUsed(inputVector),
   vtkInformationVector* outputVector)
 {
-  vtkInformation* outInfo = outputVector->GetInformationObject(0);
-  vtkGPUImageData* output = vtkGPUImageData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
-  if (!output)
+  for (int i = 0; i < this->GetNumberOfOutputPorts(); ++i)
   {
-    vtkGPUImageData* newOutput = vtkGPUImageData::New();
-    outInfo->Set(vtkDataObject::DATA_OBJECT(), newOutput);
-    newOutput->Delete();
+    vtkInformation* outInfo = outputVector->GetInformationObject(i);
+    vtkGPUImageData* output = vtkGPUImageData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+    if (!output)
+    {
+      vtkGPUImageData* newOutput = vtkGPUImageData::New();
+      outInfo->Set(vtkDataObject::DATA_OBJECT(), newOutput);
+      newOutput->Delete();
+    }
   }
   return 1;
 }
@@ -286,9 +298,10 @@ int vtkGPUAbstractImageFilter::RequestData(
   {
     outputPort = 0;
   }
-
-  vtkInformation* outInfo = outputVector->GetInformationObject(outputPort);
-  vtkGPUImageData* outputGPUImage = vtkGPUImageData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  if (outputPort > 0)
+  {
+    return 1;
+  }
 
   std::vector<vtkGPUImageData*> inputGPUImages;
   for (int idx = 0; idx < this->GetNumberOfInputConnections(0); ++idx)
@@ -310,28 +323,36 @@ int vtkGPUAbstractImageFilter::RequestData(
     inputGPUImages.push_back(inputGPUImage);
   }
 
-  // TODO: extent calculation
-  int outExtent[6];
-  if (outInfo->Has(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT()))
+  std::vector<vtkGPUImageData*> outputGPUImages;
+  for (int i = 0; i < this->GetNumberOfOutputPorts(); ++i)
   {
-    outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExtent);
-  }
-  outputGPUImage->SetExtent(outExtent);
-  outputGPUImage->SetContext(this->RenderWindow);
-  if (!outputGPUImage->AllocateScalars(this->OutputScalarType, this->NumberOfComponents))
-  {
-    return 0;
+    vtkInformation* outInfo = outputVector->GetInformationObject(outputPort);
+    vtkGPUImageData* outputGPUImage = vtkGPUImageData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+
+    // TODO: extent calculation
+    int outExtent[6];
+    if (outInfo->Has(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT()))
+    {
+      outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExtent);
+    }
+    outputGPUImage->SetExtent(outExtent);
+    outputGPUImage->SetContext(this->RenderWindow);
+    if (!outputGPUImage->AllocateScalars(this->OutputScalarType, this->NumberOfComponents))
+    {
+      return 0;
+    }
+    outputGPUImages.push_back(outputGPUImage);
   }
 
-  return this->Execute(inputGPUImages, outputGPUImage);
+  return this->Execute(inputGPUImages, outputGPUImages);
 }
 
 //----------------------------------------------------------------------------
-int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUImages, vtkGPUImageData* outputGPUImage)
+int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUImages, std::vector<vtkGPUImageData*> outputGPUImages)
 {
   if (this->ShaderRebuildNeeded())
   {
-    this->BuildShader(inputGPUImages, outputGPUImage);
+    this->BuildShader(inputGPUImages, outputGPUImages);
   }
 
   if (!this->ShaderProgram)
@@ -342,17 +363,20 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
 
   this->RenderWindow->GetShaderCache()->ReadyShaderProgram(this->ShaderProgram);
 
-  // now create the framebuffer for the output
-  int outputDimensions[3] = { 0, 0, 0 };
-  outputGPUImage->GetDimensions(outputDimensions);
-
   int outputExtent[6] = { 0, -1, 0, -1, 0, -1 };
-  outputGPUImage->GetExtent(outputExtent);
+  outputGPUImages[0]->GetExtent(outputExtent);
+  int outputDimensions[3] = { 0, 0, 0 };
+  outputGPUImages[0]->GetDimensions(outputDimensions);
 
   vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
   vtkOpenGLState* ostate = this->RenderWindow->GetState();
-  fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputGPUImage->GetTextureObject(), 0);
+
+  // now create the framebuffer for the output
+  for (int i = 0; i < outputGPUImages.size(); ++i)
+  {
+    fbo->AddColorAttachment(fbo->GetDrawMode(), i, outputGPUImages[i]->GetTextureObject(), 0);
+  }
   fbo->ActivateDrawBuffer(0);
   fbo->StartNonOrtho(outputDimensions[0], outputDimensions[1]);
   ostate->vtkglViewport(0, 0, outputDimensions[0], outputDimensions[1]);
@@ -398,7 +422,7 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   }
 
-  this->UpdateTextureUniforms(inputGPUImages, outputGPUImage);
+  this->UpdateTextureUniforms(inputGPUImages, outputGPUImages);
 
   ////////////////////////////////
   // Render
@@ -410,8 +434,12 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
     int textureSliceIndex = i - outputExtent[4];
 
     this->Quad.Program->SetUniformf("zPos", (textureSliceIndex + 0.5) / outputDimensions[2]);
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputGPUImage->GetTextureObject(), textureSliceIndex);
+
+    for (int i = 0; i < outputGPUImages.size(); ++i)
+    {
+      fbo->RemoveColorAttachment(fbo->GetDrawMode(), i);
+      fbo->AddColorAttachment(fbo->GetDrawMode(), i, outputGPUImages[i]->GetTextureObject(), textureSliceIndex);
+    }
 
     const char* error;
     if (!vtkOpenGLFramebufferObject::GetFrameBufferStatus(fbo->GetDrawMode(), error))
@@ -430,38 +458,43 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
 }
 
 //----------------------------------------------------------------------------
-void vtkGPUAbstractImageFilter::UpdateTextureUniforms(std::vector<vtkGPUImageData*> inputGPUImages, vtkGPUImageData* outputGPUImage)
+void vtkGPUAbstractImageFilter::UpdateTextureUniforms(std::vector<vtkGPUImageData*> inputGPUImages, std::vector<vtkGPUImageData*> outputGPUImages)
 {
-  float outputShift = 0.0;
-  float outputScale = 1.0;
-  outputGPUImage->GetTextureObject()->GetShiftAndScale(outputShift, outputScale);
 
-  // Provide shift and scale to get the data backing into its original units
-  std::stringstream outputShiftSS;
-  outputShiftSS << "outputShift";
-  std::string outputShiftString = outputShiftSS.str();
-  this->Quad.Program->SetUniformf(outputShiftString.c_str(), outputShift);
+  for (int i = 0; i < outputGPUImages.size(); ++i)
+  {
 
-  std::stringstream outputScaleSS;
-  outputScaleSS << "outputScale";
-  std::string outputScaleString = outputScaleSS.str();
-  this->Quad.Program->SetUniformf(outputScaleString.c_str(), outputScale);
+    float outputShift = 0.0;
+    float outputScale = 1.0;
+    outputGPUImages[i]->GetTextureObject()->GetShiftAndScale(outputShift, outputScale);
 
-  int outputDimensions[3] = { 0,0,0 };
-  outputGPUImage->GetDimensions(outputDimensions);
-  float outputDimensionsFloat[3] = { (float)outputDimensions[0], (float)outputDimensions[1], (float)outputDimensions[2] };
-  std::stringstream outputSizeSS;
-  outputSizeSS << "outputSize";
-  std::string outputSizeString = outputSizeSS.str();
-  this->Quad.Program->SetUniform3f(outputSizeString.c_str(), outputDimensionsFloat);
+    // Provide shift and scale to get the data backing into its original units
+    std::stringstream outputShiftSS;
+    outputShiftSS << "outputShift" << i;
+    std::string outputShiftString = outputShiftSS.str();
+    this->Quad.Program->SetUniformf(outputShiftString.c_str(), outputShift);
 
-  double outputSpacing[3] = { 0,0,0 };
-  outputGPUImage->GetSpacing(outputSpacing);
-  float outputSpacingFloat[3] = { (float)outputSpacing[0], (float)outputSpacing[1], (float)outputSpacing[2] };
-  std::stringstream outputSpacingSS;
-  outputSpacingSS << "outputSpacing";
-  std::string outputSpacingString = outputSpacingSS.str();
-  this->Quad.Program->SetUniform3f(outputSpacingString.c_str(), outputSpacingFloat);
+    std::stringstream outputScaleSS;
+    outputScaleSS << "outputScale" << i;
+    std::string outputScaleString = outputScaleSS.str();
+    this->Quad.Program->SetUniformf(outputScaleString.c_str(), outputScale);
+
+    int outputDimensions[3] = { 0,0,0 };
+    outputGPUImages[i]->GetDimensions(outputDimensions);
+    float outputDimensionsFloat[3] = { (float)outputDimensions[0], (float)outputDimensions[1], (float)outputDimensions[2] };
+    std::stringstream outputSizeSS;
+    outputSizeSS << "outputSize" << i;
+    std::string outputSizeString = outputSizeSS.str();
+    this->Quad.Program->SetUniform3f(outputSizeString.c_str(), outputDimensionsFloat);
+
+    double outputSpacing[3] = { 0,0,0 };
+    outputGPUImages[i]->GetSpacing(outputSpacing);
+    float outputSpacingFloat[3] = { (float)outputSpacing[0], (float)outputSpacing[1], (float)outputSpacing[2] };
+    std::stringstream outputSpacingSS;
+    outputSpacingSS << "outputSpacing" << i;
+    std::string outputSpacingString = outputSpacingSS.str();
+    this->Quad.Program->SetUniform3f(outputSpacingString.c_str(), outputSpacingFloat);
+  }
 
   ////////////////////////////////
   // Manage input textures
@@ -545,7 +578,7 @@ bool vtkGPUAbstractImageFilter::ShaderRebuildNeeded()
 }
 
 //----------------------------------------------------------------------------
-void vtkGPUAbstractImageFilter::BuildShader(std::vector<vtkGPUImageData*> inputTextures, vtkGPUImageData* outputTexture)
+void vtkGPUAbstractImageFilter::BuildShader(std::vector<vtkGPUImageData*> inputTextures, std::vector<vtkGPUImageData*> outputTextures)
 {
   std::map<vtkShader::Type, vtkShader*> shaders;
   vtkSmartPointer<vtkShader> vertexShader = vtkSmartPointer<vtkShader>::New();
@@ -617,7 +650,7 @@ void vtkGPUAbstractImageFilter::BuildShader(std::vector<vtkGPUImageData*> inputT
 
   // Custom uniform variables replacements
   //---------------------------------------------------------------------------
-  this->ReplaceShaderTextureInput(shaders, inputTextures, outputTexture);
+  this->ReplaceShaderTextureInput(shaders, inputTextures, outputTextures);
 
   // user specified post replacements
   for (auto i : repMap)
@@ -666,14 +699,17 @@ void vtkGPUAbstractImageFilter::ReplaceShaderCustomUniforms(
 
 //----------------------------------------------------------------------------
 void vtkGPUAbstractImageFilter::ReplaceShaderTextureInput(std::map<vtkShader::Type, vtkShader*>& shaders, std::vector<vtkGPUImageData*> inputTextures,
-                                                          vtkGPUImageData* vtkNotUsed(outputTexture))
+                                                          std::vector<vtkGPUImageData*> outputTextures)
 {
   std::stringstream textureUniformReplacementSS;
 
-  textureUniformReplacementSS << "uniform float outputShift;" << std::endl;
-  textureUniformReplacementSS << "uniform float outputScale;" << std::endl;
-  textureUniformReplacementSS << "uniform vec3 outputSize;" << std::endl;
-  textureUniformReplacementSS << "uniform vec3 outputSpacing;" << std::endl;
+  for (int outputIndex = 0; outputIndex < outputTextures.size(); ++outputIndex)
+  {
+    textureUniformReplacementSS << "uniform float outputShift" << outputIndex << ";" << std::endl;
+    textureUniformReplacementSS << "uniform float outputScale" << outputIndex << ";" << std::endl;
+    textureUniformReplacementSS << "uniform vec3 outputSize" << outputIndex << ";" << std::endl;
+    textureUniformReplacementSS << "uniform vec3 outputSpacing" << outputIndex << ";" << std::endl;
+  }
 
   for (int textureIndex = 0; textureIndex < inputTextures.size(); ++textureIndex)
   {

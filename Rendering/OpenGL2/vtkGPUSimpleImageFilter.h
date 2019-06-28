@@ -39,7 +39,7 @@ class VTKRENDERINGOPENGL2_EXPORT vtkGPUSimpleImageFilter : public vtkGPUAbstract
 public:
   static vtkGPUSimpleImageFilter *New();
   vtkTypeMacro(vtkGPUSimpleImageFilter, vtkGPUAbstractImageFilter);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   vtkGetMacro(ShaderProperty, vtkOpenGLShaderProperty*);
 
@@ -49,7 +49,7 @@ public:
 
  protected:
   vtkGPUSimpleImageFilter();
-  ~vtkGPUSimpleImageFilter() VTK_OVERRIDE;
+  ~vtkGPUSimpleImageFilter() override;
 
  private:
   vtkGPUSimpleImageFilter(const vtkGPUSimpleImageFilter&) = delete;

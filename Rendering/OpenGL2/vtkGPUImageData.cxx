@@ -98,6 +98,12 @@ void vtkGPUImageData::SetContext(vtkOpenGLRenderWindow* renWin)
 //----------------------------------------------------------------------------
 vtkOpenGLRenderWindow* vtkGPUImageData::GetContext()
 {
+  if (!this->TextureObject)
+  {
+    vtkErrorMacro("TODO");
+    return nullptr;
+  }
+
   return this->TextureObject->GetContext();
 }
 
@@ -149,6 +155,11 @@ bool vtkGPUImageData::AllocateScalarsFromPointer(int dataType, int numComponents
 //----------------------------------------------------------------------------
 int vtkGPUImageData::GetScalarType()
 {
+  if (!this->TextureObject)
+  {
+    vtkErrorMacro("TODO")
+    return -1;
+  }
   return this->TextureObject->GetVTKDataType();
 }
 

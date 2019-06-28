@@ -182,14 +182,14 @@ public:
                           vtkInformationVector* outputVector);
 
   bool ShaderRebuildNeeded();
-  void BuildShader(std::vector<vtkGPUImageData*> inputTextures, vtkGPUImageData* outputTexture);
+  void BuildShader(std::vector<vtkGPUImageData*> inputTextures, std::vector<vtkGPUImageData*> outputTextures);
 
-  int Execute(std::vector<vtkGPUImageData*> inputTextures, vtkGPUImageData* outputTexture);
+  int Execute(std::vector<vtkGPUImageData*> inputTextures, std::vector<vtkGPUImageData*> outputTexture);
 
   void ReplaceShaderCustomUniforms(std::map<vtkShader::Type, vtkShader*>& shaders, vtkOpenGLShaderProperty * p);
-  void ReplaceShaderTextureInput(std::map<vtkShader::Type, vtkShader*>& shaders, std::vector<vtkGPUImageData*> inputTextures, vtkGPUImageData* outputTexture);
+  void ReplaceShaderTextureInput(std::map<vtkShader::Type, vtkShader*>& shaders, std::vector<vtkGPUImageData*> inputTextures, std::vector<vtkGPUImageData*> outputTextures);
 
-  void UpdateTextureUniforms(std::vector<vtkGPUImageData*> inputTextures, vtkGPUImageData* outputTexture);
+  void UpdateTextureUniforms(std::vector<vtkGPUImageData*> inputTextures, std::vector<vtkGPUImageData*> outputTextures);
 
   virtual void UpdateCustomUniformsVertex() {};
   virtual void UpdateCustomUniformsFragment() {};

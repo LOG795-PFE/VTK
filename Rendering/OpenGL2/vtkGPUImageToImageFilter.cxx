@@ -170,7 +170,7 @@ int vtkGPUImageToImageFilter::RequestUpdateExtent(
   vtkInformation * vtkNotUsed(request),
   vtkInformationVector **inputVector,
   vtkInformationVector *vtkNotUsed(outputVector))
-{
+{ 
   vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
   int ext[6];
   inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), ext);
