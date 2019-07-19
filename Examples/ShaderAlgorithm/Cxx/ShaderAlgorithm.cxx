@@ -63,9 +63,9 @@ uniform float zPos;
 //VTK::CustomUniforms::Dec
 //VTK::Output::Dec
 void main(void) {
-  float total = floor(tcoordVSOutput.x*float(outputSize.x/boxSize)) +
-                floor(tcoordVSOutput.y*float(outputSize.y/boxSize)) + 
-                floor(zPos*float(outputSize.z/boxSize));
+  float total = floor(tcoordVSOutput.x*float(outputSize0.x/boxSize)) +
+                floor(tcoordVSOutput.y*float(outputSize0.y/boxSize)) + 
+                floor(zPos*float(outputSize0.z/boxSize));
   if (mod(total,2.0) == 0.0)
   {
     gl_FragData[0] = vec4(1.0);
