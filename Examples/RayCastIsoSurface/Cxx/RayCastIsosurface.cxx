@@ -1,15 +1,22 @@
 #include <vtkCamera.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkContourValues.h>
+#include <vtkGPUImageGaussianFilter.h>
+#include <vtkGPUImageToImageFilter.h>
+#include <vtkGPUSimpleImageFilter.h>
+#include <vtkImageData.h>
+#include <vtkImageToGPUImageFilter.h>
 #include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkMetaImageReader.h>
 #include <vtkNamedColors.h>
 #include <vtkNew.h>
 #include <vtkOpenGLGPUVolumeRayCastMapper.h>
+#include <vtkOpenGLShaderProperty.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
+#include <vtkUniforms.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
 
@@ -18,21 +25,83 @@ int main(int argc, char* argv[])
   double iso1 = 500.0;
   double iso2 = 1150.0;
 
+  // Shader for generating a box
+  std::string cFragShader = R"(
+//VTK::System::Dec
+varying vec2 tcoordVSOutput;
+uniform float zPos;
+//VTK::AlgTexUniforms::Dec
+//VTK::CustomUniforms::Dec
+//VTK::Output::Dec
+void main(void) {
+  float total = floor(tcoordVSOutput.x*float(outputSize0.x/boxSize)) +
+                floor(tcoordVSOutput.y*float(outputSize0.y/boxSize)) + 
+                floor(zPos*float(outputSize0.z/boxSize));
+  if (mod(total,2.0) == 0.0)
+  {
+    gl_FragData[0] = vec4(1.0);
+  }
+  else
+  {
+    gl_FragData[0] = vec4(vec3(0.0), 1.0);
+  }
+}
+)";
+
+  // Shader for generating a box
+  std::string sFragShader = R"(
+//VTK::System::Dec
+varying vec2 tcoordVSOutput;
+uniform float zPos;
+//VTK::AlgTexUniforms::Dec
+//VTK::CustomUniforms::Dec
+//VTK::Output::Dec
+void main(void) {
+  vec4 value1 = texture3D(inputTex0, vec3(tcoordVSOutput.x, tcoordVSOutput.y, zPos));
+  vec4 value2 = texture3D(inputTex1, vec3(tcoordVSOutput.x, tcoordVSOutput.y, zPos));
+  gl_FragData[0] = vec4(vec3(value1.r * value2.r), 1.0);
+}
+)";
+
   if (argc < 2)
   {
-    std::cout << "Usage: " << argv[0] << " file.mnd [iso1=500] [iso2=1150]"
-      << std::endl;
+    std::cout << "Usage: " << argv[0] << " file.mnd [iso1=500] [iso2=1150]" << std::endl;
     std::cout << "e.g. FullHead.mhd 500 1150" << std::endl;
     return EXIT_FAILURE;
   }
 
   vtkNew<vtkMetaImageReader> reader;
   reader->SetFileName(argv[1]);
+  reader->Update();
+  vtkImageData* inputImage = reader->GetOutput();
 
-  vtkNew<vtkNamedColors> colors;
+  vtkNew<vtkImageToGPUImageFilter> inputConvert;
+  inputConvert->SetInputDataObject(inputImage);
+  inputConvert->Update();
+
+  vtkNew<vtkGPUSimpleImageFilter> checkerPatternGenerator;
+  checkerPatternGenerator->GetShaderProperty()->SetFragmentShaderCode(cFragShader.c_str());
+  checkerPatternGenerator->SetOutputExtent(inputImage->GetExtent());
+  checkerPatternGenerator->SetRenderWindow(inputConvert->GetRenderWindow());
+  vtkOpenGLShaderProperty* property = checkerPatternGenerator->GetShaderProperty();
+  property->GetFragmentCustomUniforms()->SetUniformi("boxSize", 10);
+
+  vtkNew<vtkGPUImageGaussianFilter> gaussianAlgorithm;
+  gaussianAlgorithm->SetOutputScalarTypeToShort();
+  gaussianAlgorithm->AddInputConnection(inputConvert->GetOutputPort());
+
+  vtkNew<vtkGPUSimpleImageFilter> shaderAlgorithm;
+  shaderAlgorithm->GetShaderProperty()->SetFragmentShaderCode(sFragShader.c_str());
+  shaderAlgorithm->AddInputConnection(gaussianAlgorithm->GetOutputPort());
+  shaderAlgorithm->AddInputConnection(checkerPatternGenerator->GetOutputPort());
+  shaderAlgorithm->SetOutputScalarTypeToShort();
+
+  vtkNew<vtkGPUImageToImageFilter> outputConvert;
+  outputConvert->SetInputConnection(shaderAlgorithm->GetOutputPort());
+  outputConvert->Update();
 
   vtkNew<vtkOpenGLGPUVolumeRayCastMapper> mapper;
-  mapper->SetInputConnection(reader->GetOutputPort());
+  mapper->SetInputConnection(outputConvert->GetOutputPort());
   mapper->AutoAdjustSampleDistancesOff();
   mapper->SetSampleDistance(0.5);
   mapper->SetBlendModeToIsoSurface();
@@ -42,16 +111,14 @@ int main(int argc, char* argv[])
     iso1 = atof(argv[2]);
     iso2 = atof(argv[3]);
   }
+
+  vtkNew<vtkNamedColors> colors;
   vtkNew<vtkColorTransferFunction> colorTransferFunction;
   colorTransferFunction->RemoveAllPoints();
-  colorTransferFunction->AddRGBPoint(iso2,
-    colors->GetColor3d("ivory").GetData()[0],
-    colors->GetColor3d("ivory").GetData()[1],
-    colors->GetColor3d("ivory").GetData()[2]);
-  colorTransferFunction->AddRGBPoint(iso1,
-    colors->GetColor3d("flesh").GetData()[0],
-    colors->GetColor3d("flesh").GetData()[1],
-    colors->GetColor3d("flesh").GetData()[2]);
+  colorTransferFunction->AddRGBPoint(iso2, colors->GetColor3d("ivory").GetData()[0],
+    colors->GetColor3d("ivory").GetData()[1], colors->GetColor3d("ivory").GetData()[2]);
+  colorTransferFunction->AddRGBPoint(iso1, colors->GetColor3d("flesh").GetData()[0],
+    colors->GetColor3d("flesh").GetData()[1], colors->GetColor3d("flesh").GetData()[2]);
 
   vtkNew<vtkPiecewiseFunction> scalarOpacity;
   scalarOpacity->AddPoint(iso1, .3);
