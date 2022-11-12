@@ -158,6 +158,12 @@ public:
   // \post done: this->OpenGLObjectsCreated==0
   void ReleaseGraphicsResources(vtkWindow* window) override;
 
+  void CloneInput(vtkDataSet* input, const int port) override;
+
+  int FillInputPortInformation(int port, vtkInformation* info);
+
+  void TransformInput(const int port) override;
+
 protected:
   vtkOpenGLGPUVolumeRayCastMapper();
   ~vtkOpenGLGPUVolumeRayCastMapper() override;

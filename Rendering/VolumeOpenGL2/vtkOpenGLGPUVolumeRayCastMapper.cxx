@@ -42,9 +42,11 @@
 #include <vtkDensifyPolyData.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkGPUImageData.h>
 #include <vtkLight.h>
 #include <vtkLightCollection.h>
 #include <vtkMath.h>
+#include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkMultiVolume.h>
 #include <vtkNew.h>
@@ -2282,6 +2284,86 @@ void vtkOpenGLGPUVolumeRayCastMapper::ReleaseGraphicsResources(vtkWindow* window
   this->Impl->DeleteMaskTransfer();
 
   this->Impl->ReleaseResourcesTime.Modified();
+}
+
+//------------------------------------------------------------------------------
+void vtkOpenGLGPUVolumeRayCastMapper::CloneInput(vtkDataSet* input, const int port) 
+{
+  // Clone input into a transformed input
+  vtkDataSet* clone;
+  vtkDataSet* currentData = this->FindData(port, this->TransformedInputs);
+  if (!currentData)
+  {
+    if (vtkImageData::SafeDownCast(input))
+    {
+      if (vtkUniformGrid::SafeDownCast(input))
+      {
+        clone = vtkUniformGrid::New();
+      }
+      else
+      {
+        clone = vtkImageData::New();
+      }
+    }
+    else if (vtkGPUImageData::SafeDownCast(input))
+    {
+      clone = vtkGPUImageData::New();
+    }
+    else if (vtkRectilinearGrid::SafeDownCast(input))
+    {
+      clone = vtkRectilinearGrid::New();
+    }
+    else
+    {
+      clone = nullptr;
+    }
+    clone->Register(this);
+    this->TransformedInputs[port] = clone;
+    clone->Delete();
+
+    this->LastInputs[port] = nullptr;
+  }
+  else
+  {
+    clone = this->TransformedInputs[port];
+  }
+
+  // If we have a timestamp change or data change then create a new clone
+  if (input != this->LastInputs[port] ||
+    (input != nullptr && input->GetMTime() > clone->GetMTime()))
+  {
+    this->LastInputs[port] = input;
+    this->TransformInput(port);
+  }
+}
+
+int vtkOpenGLGPUVolumeRayCastMapper::FillInputPortInformation(int port, vtkInformation* info)
+{
+  if (!this->Superclass::FillInputPortInformation(port, info))
+  {
+    return 0;
+  }
+  info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGPUImageData");
+  return 1;
+}
+
+void vtkOpenGLGPUVolumeRayCastMapper::TransformInput(const int port) 
+{
+  vtkDataSet* dataset = this->TransformedInputs[port];
+  if (vtkImageData::SafeDownCast(dataset) || vtkRectilinearGrid::SafeDownCast(dataset))
+  {
+    Superclass::TransformInput(port);
+  }
+  else if (vtkGPUImageData* cloneGPU = vtkGPUImageData::SafeDownCast(dataset))
+  {
+    if (!dataset)
+    {
+      cloneGPU->SetExtent(0, -1, 0, -1, 0, -1);
+      return;
+    }
+
+    cloneGPU->ShallowCopy(this->GetInput(port));
+  }
 }
 
 //------------------------------------------------------------------------------

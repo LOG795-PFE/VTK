@@ -6,6 +6,7 @@
 #include "vtkDataArrayRange.h"
 #include "vtkFloatArray.h"
 #include "vtkImageData.h"
+#include "vtkGPUImageData.h"
 #include "vtkMatrix3x3.h"
 #include "vtkMatrix4x4.h"
 #include "vtkNew.h"
@@ -71,6 +72,7 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
   this->InterpolationType = interpolation;
   vtkImageData* imData = vtkImageData::SafeDownCast(data);
   vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(data);
+  vtkGPUImageData* gpuData = vtkGPUImageData::SafeDownCast(data);
   if (imData)
   {
     imData->GetExtent(this->FullExtent.GetData());
@@ -78,6 +80,10 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
   else if (rGrid)
   {
     rGrid->GetExtent(this->FullExtent.GetData());
+  }
+  else if (gpuData)
+  {
+    gpuData->GetExtent(this->FullExtent.GetData());
   }
 
   // Setup partition blocks
@@ -121,6 +127,10 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
       singleBlock->SetExtent(this->FullExtent.GetData());
       this->ImageDataBlocks.push_back(singleBlock);
     }
+    else if (gpuData)
+    {
+      vtkWarningMacro("TODO");
+    }
   }
 
   // Get default formats from vtkTextureObject
@@ -143,8 +153,9 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
     this->BlankingTex->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
   }
 
-  int scalarType = this->Scalars->GetDataType();
-  int noOfComponents = this->Scalars->GetNumberOfComponents();
+  int scalarType = (!gpuData) ? this->Scalars->GetDataType() : gpuData->GetScalarType();
+  int noOfComponents = (!gpuData) ? this->Scalars->GetNumberOfComponents()
+                                  : gpuData->GetTextureObject()->GetComponents();  
 
   unsigned int format = this->Texture->GetDefaultFormat(scalarType, noOfComponents, false);
   unsigned int internalFormat =

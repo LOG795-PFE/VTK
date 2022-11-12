@@ -483,7 +483,7 @@ protected:
    * There is not a easy fix in the GPU volume ray cast mapper hence
    * this fix has been introduced.
    */
-  void TransformInput(const int port);
+  virtual void TransformInput(const int port);
 
   ///@{
   /**
@@ -506,7 +506,7 @@ protected:
    * \sa vtkGPUVolumeRayCastMapper::TransformInput
    */
   void CloneInputs();
-  void CloneInput(vtkDataSet* input, const int port);
+  virtual void CloneInput(vtkDataSet* input, const int port);
   ///@}
 
   // Special version of render called during the creation

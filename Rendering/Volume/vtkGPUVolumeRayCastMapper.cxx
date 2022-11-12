@@ -38,6 +38,7 @@
 #include <vtkTimerLog.h>
 #include <vtkVolumeProperty.h>
 
+
 // Return nullptr if no override is supplied.
 VTK_ABI_NAMESPACE_BEGIN
 vtkAbstractObjectFactoryNewMacro(vtkGPUVolumeRayCastMapper);
