@@ -18,6 +18,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkTextureObject.h"
+#include <vtkCellType.h>
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkGPUImageData);
@@ -49,6 +50,82 @@ vtkGPUImageData::~vtkGPUImageData()
 }
 
 //----------------------------------------------------------------------------
+// DataSet implementation
+void vtkGPUImageData::CopyStructure(vtkDataSet* ds)
+{
+  vtkGPUImageData* sPts = static_cast<vtkGPUImageData*>(ds);
+  this->SetDimensions(0, 0, 0); // this->Initialize();
+
+  for (int idx = 0; idx < 3; ++idx)
+  {
+    this->Dimensions[idx] = sPts->Dimensions[idx];
+    this->Spacing[idx] = sPts->Spacing[idx];
+    this->Origin[idx] = sPts->Origin[idx];
+  }
+  /*this->DirectionMatrix->DeepCopy(sPts->GetDirectionMatrix());
+  this->ComputeTransforms();
+  this->SetExtent(sPts->GetExtent());*/
+}
+
+//------------------------------------------------------------------------------
+// DataSet implementation
+vtkIdType vtkGPUImageData::GetNumberOfCells()
+{
+  vtkIdType nCells = 1;
+  const int* dims = this->GetDimensions();
+
+  for (int i = 0; i < 3; i++)
+  {
+    if (dims[i] == 0)
+    {
+      return 0;
+    }
+    if (dims[i] > 1)
+    {
+      nCells *= (static_cast<long long>(dims[i]) - 1);
+    }
+  }
+
+  return nCells;
+}
+
+//----------------------------------------------------------------------------
+// DataSet implementation
+void vtkGPUImageData::GetPoint(vtkIdType ptId, double x[3]) {
+  vtkErrorMacro("TODO");
+}
+
+//----------------------------------------------------------------------------
+// DataSet implementation
+vtkCell* vtkGPUImageData::GetCell(vtkIdType cellId)
+{
+  vtkErrorMacro("TODO");
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+// DataSet implementation
+vtkCell* vtkGPUImageData::GetCell(int iMin, int jMin, int kMin)
+{
+  vtkErrorMacro("TODO");
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+// DataSet implementation
+void vtkGPUImageData::GetCell(vtkIdType cellId, vtkGenericCell* cell)
+{
+  vtkErrorMacro("TODO");
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkGPUImageData::FindPoint(double x[3])
+{
+  vtkErrorMacro("TODO");
+  return -1;
+}
+
+//----------------------------------------------------------------------------
 void vtkGPUImageData::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -67,6 +144,29 @@ void vtkGPUImageData::SetDimensions(int i, int j, int k)
 void vtkGPUImageData::SetDimensions(const int dim[3])
 {
   this->SetExtent(0, dim[0] - 1, 0, dim[1] - 1, 0, dim[2] - 1);
+}
+
+//------------------------------------------------------------------------------
+// Set dimensions of structured points dataset.
+int vtkGPUImageData::GetCellType(vtkIdType vtkNotUsed(cellId)) {
+  vtkErrorMacro("TODO");
+  return VTK_EMPTY_CELL;
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkGPUImageData::FindCell(double x[3], vtkCell* vtkNotUsed(cell),
+  vtkIdType vtkNotUsed(cellId), double tol2, int& subId, double pcoords[3], double* weights)
+{
+  vtkErrorMacro("TODO");
+  return -1;
+}
+
+vtkIdType vtkGPUImageData::FindCell(double x[3], vtkCell* vtkNotUsed(cell),
+  vtkGenericCell* vtkNotUsed(gencell), vtkIdType vtkNotUsed(cellId), double tol2, int& subId,
+  double pcoords[3], double* weights)
+{
+  vtkErrorMacro("TODO");
+  return -1;
 }
 
 //----------------------------------------------------------------------------

@@ -25,7 +25,7 @@
 #define vtkGPUImageData_h
 
 #include "vtkRenderingOpenGL2Module.h" // For export macro
-#include "vtkDataObject.h"
+#include "vtkDataSet.h"
 #include "vtkInformationObjectBaseKey.h"
 #include "vtkSmartPointer.h"
 #include "vtkTextureObject.h"
@@ -34,7 +34,7 @@ class vtkOpenGLRenderWindow;
 
 // \ingroup InformationKeys
 
-class VTKRENDERINGOPENGL2_EXPORT vtkGPUImageData : public vtkDataObject
+class VTKRENDERINGOPENGL2_EXPORT vtkGPUImageData : public vtkDataSet
 {
 public:
 
@@ -43,6 +43,41 @@ public:
   static vtkGPUImageData* New();
   vtkTypeMacro(vtkGPUImageData, vtkDataObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  void CopyStructure(vtkDataSet* ds) override;
+
+///@{
+  /**
+   * Standard vtkDataSet API methods. See vtkDataSet for more information.
+   */
+  vtkIdType GetNumberOfCells() override;
+  vtkIdType GetNumberOfPoints() override;
+  double* GetPoint(vtkIdType ptId) VTK_SIZEHINT(3) override;
+  void GetPoint(vtkIdType id, double x[3]) override;
+  vtkCell* GetCell(vtkIdType cellId) override;
+  vtkCell* GetCell(int i, int j, int k) override;
+  void GetCell(vtkIdType cellId, vtkGenericCell* cell) override;
+  vtkIdType FindPoint(double x[3]) override;
+  vtkIdType FindCell(double x[3], vtkCell* cell, vtkIdType cellId, double tol2, int& subId,
+    double pcoords[3], double* weights) override;
+  vtkIdType FindCell(double x[3], vtkCell* cell, vtkGenericCell* gencell, vtkIdType cellId,
+    double tol2, int& subId, double pcoords[3], double* weights) override;
+  int GetCellType(vtkIdType cellId) override;
+  using vtkDataSet::GetCellPoints;
+  void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override
+  {
+    int dimensions[3];
+    this->GetDimensions(dimensions);
+    //vtkStructuredData::GetCellPoints(cellId, ptIds, this->DataDescription, dimensions);
+  }
+  void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override
+  {
+    int dimensions[3];
+    this->GetDimensions(dimensions);
+    //vtkStructuredData::GetPointCells(ptId, cellIds, dimensions);
+  }
+  int GetMaxCellSize() override { return 6; }
+  ///@}
 
   /**
   * Same as SetExtent(0, i-1, 0, j-1, 0, k-1)
@@ -143,4 +178,19 @@ private:
   void operator=(const vtkGPUImageData&) = delete;
 };
 
+//----------------------------------------------------------------------------
+inline double* vtkGPUImageData::GetPoint(vtkIdType id)
+{
+  vtkErrorMacro("todo");
+  return 0;
+}
+
+//----------------------------------------------------------------------------
+inline vtkIdType vtkGPUImageData::GetNumberOfPoints()
+{
+  const int* extent = this->Extent;
+  const int* dims = this->GetDimensions();
+
+  return dims[0] * dims[1] * dims[2];
+}
 #endif
