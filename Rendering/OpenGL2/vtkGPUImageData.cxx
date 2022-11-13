@@ -14,6 +14,9 @@
 =========================================================================*/
 #include "vtkGPUImageData.h"
 
+#include "vtkDataArray.h"
+#include "vtkImageData.h"
+#include "vtkPointData.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLRenderWindow.h"
@@ -249,6 +252,49 @@ bool vtkGPUImageData::AllocateScalarsFromPointer(int dataType, int numComponents
     this->TextureObject = nullptr;
     return false;
   }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkGPUImageData::AllocateScalarsFromObject(int dataType, int numComponents, vtkDataObject* object)
+{
+  int dimensions[3] = { 0, 0, 0 };
+  this->GetDimensions(dimensions);
+
+  auto image = vtkImageData::SafeDownCast(object);
+
+  this->TextureObject = vtkSmartPointer<vtkTextureObject>::New();
+  this->TextureObject->SetContext(this->Context);
+  if (!this->TextureObject->Create3DFromRaw(
+        dimensions[0], dimensions[1], dimensions[2], numComponents, dataType, image->GetScalarPointer()))
+  {
+    this->TextureObject = nullptr;
+    return false;
+  }
+
+  vtkIdType imageSize = dimensions[0] * dimensions[1] * dimensions[2];
+  vtkDataArray* scalars = this->PointData->GetScalars();
+  if (scalars && scalars->GetDataType() == dataType && scalars->GetReferenceCount() == 1)
+  {
+    scalars->SetNumberOfComponents(numComponents);
+    scalars->SetNumberOfTuples(imageSize);
+    // Since the execute method will be modifying the scalars
+    // directly.
+    scalars->Modified();
+    return false;
+  }
+
+  // allocate the new scalars
+  scalars = vtkDataArray::CreateDataArray(dataType);
+  scalars->SetNumberOfComponents(numComponents);
+  scalars->SetName("ImageScalars");
+
+  // allocate enough memory
+  scalars->SetNumberOfTuples(imageSize);
+
+  this->PointData->SetScalars(scalars);
+  scalars->Delete();
+
   return true;
 }
 

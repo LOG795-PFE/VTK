@@ -153,7 +153,8 @@ public:
   };
 
   bool AllocateScalars(int dataType, int numComponents);
-  bool AllocateScalarsFromPointer(int dataType, int numComponents, void *data);
+  bool AllocateScalarsFromPointer(int dataType, int numComponents, void* data);
+  bool AllocateScalarsFromObject(int dataType, int numComponents, vtkDataObject* data);
 
   int GetScalarType();
 
@@ -170,6 +171,8 @@ protected:
   double Spacing[3];
   int Extent[6];
   int Dimensions[3];
+
+
 
   vtkSmartPointer<vtkOpenGLRenderWindow> Context;
 

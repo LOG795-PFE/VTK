@@ -153,9 +153,8 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
     this->BlankingTex->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
   }
 
-  int scalarType = (!gpuData) ? this->Scalars->GetDataType() : gpuData->GetScalarType();
-  int noOfComponents = (!gpuData) ? this->Scalars->GetNumberOfComponents()
-                                  : gpuData->GetTextureObject()->GetComponents();  
+  int scalarType = this->Scalars->GetDataType();
+  int noOfComponents = this->Scalars->GetNumberOfComponents();  
 
   unsigned int format = this->Texture->GetDefaultFormat(scalarType, noOfComponents, false);
   unsigned int internalFormat =

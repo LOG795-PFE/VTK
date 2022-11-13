@@ -348,6 +348,8 @@ int vtkGPUVolumeRayCastMapper::ValidateInput(vtkVolumeProperty* property, const 
     this->CloneInput(input, port);
   }
 
+  return goodSoFar;
+
   // Update the date then make sure we have scalars. Note
   // that we must have point or cell scalars because field
   // scalars are not supported.
