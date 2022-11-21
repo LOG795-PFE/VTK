@@ -527,8 +527,8 @@ std::string BaseImplementation(
 
   // Blanking support
   vtkSmartPointer<vtkDataSet> dataSet = vtkDataSet::SafeDownCast(mapper->GetInput());
-  bool blankCells = (dataSet->GetCellGhostArray() != nullptr);
-  bool blankPoints = (dataSet->GetPointGhostArray() != nullptr);
+  bool blankCells = false;  // (dataSet->GetCellGhostArray() != nullptr);
+  bool blankPoints = false; // (dataSet->GetPointGhostArray() != nullptr);
   if (blankPoints || blankCells)
   {
     str += std::string("\

@@ -57,7 +57,7 @@ void vtkVolumeInputHelper::UpdateTransferFunctions(
 {
   auto vol = this->Volume;
   const int transferMode = vol->GetProperty()->GetTransferFunctionMode();
-  const int numComp = this->Texture->GetLoadedScalars()->GetNumberOfComponents();
+  const int numComp = 1; // this->Texture->GetLoadedScalars()->GetNumberOfComponents();
   switch (transferMode)
   {
     case vtkVolumeProperty::TF_1D:
@@ -265,8 +265,8 @@ void vtkVolumeInputHelper::UpdateTransferFunction2D(vtkRenderer* ren, unsigned i
 void vtkVolumeInputHelper::ActivateTransferFunction(vtkShaderProgram* prog, const int blendMode)
 {
   int const transferMode = this->Volume->GetProperty()->GetTransferFunctionMode();
-  int const numActiveLuts =
-    this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
+  int const numActiveLuts = 1;
+    // this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
   switch (transferMode)
   {
     case vtkVolumeProperty::TF_1D:
@@ -305,8 +305,8 @@ void vtkVolumeInputHelper::ActivateTransferFunction(vtkShaderProgram* prog, cons
 void vtkVolumeInputHelper::DeactivateTransferFunction(const int blendMode)
 {
   int const transferMode = this->Volume->GetProperty()->GetTransferFunctionMode();
-  int const numActiveLuts =
-    this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
+  int const numActiveLuts = 1;
+    // this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
   switch (transferMode)
   {
     case vtkVolumeProperty::TF_1D:
@@ -336,8 +336,8 @@ void vtkVolumeInputHelper::CreateTransferFunction1D(vtkRenderer* ren, const int 
 {
   this->ReleaseGraphicsTransfer1D(ren->GetRenderWindow());
 
-  int const numActiveLuts =
-    this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
+  int const numActiveLuts = 1;
+    // this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
 
   // Create RGB and opacity (scalar and gradient) lookup tables. Up to four
   // components are supported in single-input independentComponents mode.
@@ -382,8 +382,8 @@ void vtkVolumeInputHelper::CreateTransferFunction2D(vtkRenderer* ren, const int 
 {
   this->ReleaseGraphicsTransfer2D(ren->GetRenderWindow());
 
-  unsigned int const num =
-    this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
+  unsigned int const num = 1;
+    // this->ComponentMode == INDEPENDENT ? Texture->GetLoadedScalars()->GetNumberOfComponents() : 1;
 
   this->TransferFunctions2D =
     vtkSmartPointer<vtkOpenGLVolumeLookupTables<vtkOpenGLVolumeTransferFunction2D>>::New();

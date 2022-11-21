@@ -92,7 +92,6 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
     // TODO: Partitions are only supported for image data input for now.
     if (!imData)
     {
-
       vtkErrorMacro(<< "Partitioning only supported for vtkImageData input right now!");
       return false;
     }
@@ -129,7 +128,10 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
     }
     else if (gpuData)
     {
-      vtkWarningMacro("TODO");
+      vtkGPUImageData* singleBlock = vtkGPUImageData::New();
+      singleBlock->ShallowCopy(gpuData);
+      singleBlock->SetExtent(this->FullExtent.GetData());
+      this->ImageDataBlocks.push_back(singleBlock);
     }
   }
 
@@ -138,6 +140,11 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
   {
     this->Texture = vtkSmartPointer<vtkTextureObject>::New();
     this->Texture->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
+
+    if (gpuData)
+    {
+      this->Texture = vtkSmartPointer<vtkTextureObject>::Take(gpuData->GetTextureObject());
+    }
   }
   if (rGrid)
   {
@@ -147,14 +154,14 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
       this->CoordsTex->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
     }
   }
-  if (data->GetPointGhostArray() || data->GetCellGhostArray())
+  if (!gpuData && (data->GetPointGhostArray() || data->GetCellGhostArray()))
   {
     this->BlankingTex = vtkSmartPointer<vtkTextureObject>::New();
     this->BlankingTex->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
   }
 
-  int scalarType = this->Scalars->GetDataType();
-  int noOfComponents = this->Scalars->GetNumberOfComponents();  
+  int scalarType = 4; // this->Scalars->GetDataType();
+  int noOfComponents = 1; // this->Scalars->GetNumberOfComponents();  
 
   unsigned int format = this->Texture->GetDefaultFormat(scalarType, noOfComponents, false);
   unsigned int internalFormat =
@@ -231,6 +238,7 @@ void vtkVolumeTexture::CreateBlocks(
     vtkDataSet* dataset = this->ImageDataBlocks.at(i);
     vtkImageData* imData = vtkImageData::SafeDownCast(dataset);
     vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(dataset);
+    vtkGPUImageData* gpuData = vtkGPUImageData::SafeDownCast(dataset);
     int* ext = nullptr;
     if (imData)
     {
@@ -239,6 +247,10 @@ void vtkVolumeTexture::CreateBlocks(
     else if (rGrid)
     {
       ext = rGrid->GetExtent();
+    }
+    else if (gpuData)
+    {
+      ext = gpuData->GetExtent();
     }
     Size3 const texSize = this->ComputeBlockSize(ext);
     VolumeBlock* block = new VolumeBlock(dataset, this->Texture, texSize);
@@ -294,12 +306,13 @@ vtkVolumeTexture::Size3 vtkVolumeTexture::ComputeBlockSize(int* extent)
 //------------------------------------------------------------------------------
 bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBlock)
 {
-  int const noOfComponents = this->Scalars->GetNumberOfComponents();
-  int scalarType = this->Scalars->GetDataType();
+  int const noOfComponents = 1; // this->Scalars->GetNumberOfComponents();
+  int scalarType = 4; // this->Scalars->GetDataType();
 
   auto dataSet = volBlock->DataSet;
   auto imBlock = vtkImageData::SafeDownCast(dataSet);
   auto rgBlock = vtkRectilinearGrid::SafeDownCast(dataSet);
+  auto gpuData = vtkGPUImageData::SafeDownCast(dataSet);
   int blockExt[6];
   if (imBlock)
   {
@@ -308,6 +321,10 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
   else if (rgBlock)
   {
     rgBlock->GetExtent(blockExt);
+  }
+  else if (gpuData)
+  {
+    gpuData->GetExtent(blockExt);
   }
   Size3 const& blockSize = volBlock->TextureSize;
   vtkTextureObject* texture = volBlock->TextureObject;
@@ -332,21 +349,41 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
       ostate->vtkglPixelStorei(GL_UNPACK_IMAGE_HEIGHT, this->FullSize[1]);
     }
 
-    // Account for component offset
-    // index = ( z0 * Dx * Dy + y0 * Dx + x0 ) * numComp
-    vtkIdType const dataIdx = tupleIdx * noOfComponents;
-    void* dataPtr = this->Scalars->GetVoidPointer(dataIdx);
-
-    if (this->StreamBlocks)
+    if (gpuData)
     {
-      success = texture->Create3DFromRaw(
-        blockSize[0], blockSize[1], blockSize[2], noOfComponents, scalarType, dataPtr);
+      if (useXStride)
+      {
+        ostate->vtkglPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+      }
+
+      if (useYStride)
+      {
+        ostate->vtkglPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+      }
+
+      this->UploadTime.Modified();
+
+      return success;
     }
     else
     {
-      success = SafeLoadTexture(
-        texture, blockSize[0], blockSize[1], blockSize[2], noOfComponents, scalarType, dataPtr);
+      // Account for component offset
+      // index = ( z0 * Dx * Dy + y0 * Dx + x0 ) * numComp
+      vtkIdType const dataIdx = tupleIdx * noOfComponents;
+      void* dataPtr = this->Scalars->GetVoidPointer(dataIdx);
+
+      if (this->StreamBlocks)
+      {
+        success = texture->Create3DFromRaw(
+          blockSize[0], blockSize[1], blockSize[2], noOfComponents, scalarType, dataPtr);
+      }
+      else
+      {
+        success = SafeLoadTexture(
+          texture, blockSize[0], blockSize[1], blockSize[2], noOfComponents, scalarType, dataPtr);
+      }
     }
+    
     texture->Activate();
     texture->SetWrapS(vtkTextureObject::ClampToEdge);
     texture->SetWrapT(vtkTextureObject::ClampToEdge);
@@ -809,13 +846,14 @@ void vtkVolumeTexture::SelectTextureFormat(unsigned int& format, unsigned int& i
       break;
   }
 
+  double tmp_range[2] = { 0, 1 };
+
   // Cache the array's scalar range
   for (int n = 0; n < noOfComponents; ++n)
   {
-    double* range = this->Scalars->GetFiniteRange(n);
     for (int i = 0; i < 2; ++i)
     {
-      this->ScalarRange[n][i] = static_cast<float>(range[i]);
+      this->ScalarRange[n][i] = static_cast<float>(tmp_range[i]);
     }
   }
 
@@ -1239,6 +1277,6 @@ void vtkVolumeTexture::ComputeCellToPointMatrix(int extents[6])
 //------------------------------------------------------------------------------
 vtkDataArray* vtkVolumeTexture::GetLoadedScalars()
 {
-  return this->Scalars;
+  return (this->Scalars) ? this->Scalars: 0;
 }
 VTK_ABI_NAMESPACE_END

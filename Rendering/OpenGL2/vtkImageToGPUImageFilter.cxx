@@ -202,7 +202,7 @@ int vtkImageToGPUImageFilter::RequestData(
   outputGPUImage->SetContext(this->RenderWindow);
   outputGPUImage->SetExtent(outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT()));
 
-  if (!outputGPUImage->AllocateScalarsFromObject(inputImage->GetScalarType(), inputImage->GetNumberOfScalarComponents(), inputImage))
+  if (!outputGPUImage->AllocateScalarsFromPointer(inputImage->GetScalarType(), inputImage->GetNumberOfScalarComponents(), inputImage->GetScalarPointer()))
   {
     return 0;
   }

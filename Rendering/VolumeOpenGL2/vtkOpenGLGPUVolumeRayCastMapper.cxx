@@ -2354,16 +2354,6 @@ void vtkOpenGLGPUVolumeRayCastMapper::TransformInput(const int port)
   {
     Superclass::TransformInput(port);
   }
-  else if (vtkGPUImageData* cloneGPU = vtkGPUImageData::SafeDownCast(dataset))
-  {
-    if (!dataset)
-    {
-      cloneGPU->SetExtent(0, -1, 0, -1, 0, -1);
-      return;
-    }
-
-    cloneGPU->ShallowCopy(this->GetInput(port));
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -2893,7 +2883,7 @@ void vtkOpenGLGPUVolumeRayCastMapper::BuildShader(vtkRenderer* ren)
     }
   }
 
-  auto numComp = this->AssembledInputs[0].Texture->GetLoadedScalars()->GetNumberOfComponents();
+  auto numComp = 1; // this->AssembledInputs[0].Texture->GetLoadedScalars()->GetNumberOfComponents();
   this->ReplaceShaderValues(shaders, ren, vol, numComp);
 
   // user specified post replacements
@@ -3080,7 +3070,9 @@ bool vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::UpdateInputs(vtkRenderer* ren
       vol = this->MultiVolume->GetVolume(port);
     }
     auto property = vol->GetProperty();
-    auto input = this->Parent->GetTransformedInput(port);
+    auto input = vtkGPUImageData::SafeDownCast(
+      this->Parent->GetInputDataObject(port, 0)); // this->Parent->GetTransformedInput(port);
+    
 
     // Check for property changes
     this->VolumePropertyChanged |= property->GetMTime() > this->ShaderBuildTime.GetMTime();
@@ -4000,7 +3992,7 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::RenderSingleInput(
   }
 
   const int independent = vol->GetProperty()->GetIndependentComponents();
-  const int numComp = volumeTex->GetLoadedScalars()->GetNumberOfComponents();
+  const int numComp = 1; // volumeTex->GetLoadedScalars()->GetNumberOfComponents();
   while (block != nullptr)
   {
     const int numSamplers = (independent ? numComp : 1);
