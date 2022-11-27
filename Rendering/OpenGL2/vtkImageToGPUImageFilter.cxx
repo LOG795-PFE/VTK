@@ -57,6 +57,7 @@ void vtkImageToGPUImageFilter::SetRenderWindow(vtkRenderWindow *renWin)
   }
 
   this->RenderWindow = orw;
+  this->RenderWindow->MakeCurrent();
   this->Modified();
 }
 
@@ -201,6 +202,19 @@ int vtkImageToGPUImageFilter::RequestData(
   vtkGPUImageData *outputGPUImage = vtkGPUImageData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
   outputGPUImage->SetContext(this->RenderWindow);
   outputGPUImage->SetExtent(outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT()));
+  
+  double spacing[3] = { 0, 0, 0 };
+  double origin[3] = { 0, 0, 0 };
+  int dimensions[3] = { 0, 0, 0 };
+
+  inputImage->GetSpacing(spacing);
+  inputImage->GetOrigin(origin);
+  inputImage->GetDimensions(dimensions);
+
+  outputGPUImage->SetSpacing(spacing);
+  outputGPUImage->SetOrigin(origin);
+  outputGPUImage->SetDimensions(dimensions);
+
 
   if (!outputGPUImage->AllocateScalarsFromPointer(inputImage->GetScalarType(), inputImage->GetNumberOfScalarComponents(), inputImage->GetScalarPointer()))
   {

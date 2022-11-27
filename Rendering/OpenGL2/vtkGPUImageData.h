@@ -26,6 +26,8 @@
 
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkDataSet.h"
+#include "vtkMatrix3x3.h"
+#include "vtkMatrix4x4.h"
 #include "vtkInformationObjectBaseKey.h"
 #include "vtkSmartPointer.h"
 #include "vtkTextureObject.h"
@@ -78,6 +80,17 @@ public:
   }
   int GetMaxCellSize() override { return 6; }
   ///@}
+
+  vtkGetObjectMacro(DirectionMatrix, vtkMatrix3x3);
+  virtual void SetDirectionMatrix(vtkMatrix3x3* m);
+  virtual void SetDirectionMatrix(const double elements[9]);
+  virtual void SetDirectionMatrix(double e00, double e01, double e02, double e10,
+    double e11, double e12, double e20, double e21, double e22);
+
+  void ComputeTransforms();
+
+  static void TransformContinuousIndexToPhysicalPoint(double i, double j, double k,
+    double const origin[3], double const spacing[3], double const direction[9], double xyz[3]);
 
   /**
   * Same as SetExtent(0, i-1, 0, j-1, 0, k-1)
@@ -171,8 +184,9 @@ protected:
   double Spacing[3];
   int Extent[6];
   int Dimensions[3];
-
-
+  vtkMatrix3x3* DirectionMatrix;
+  vtkMatrix4x4* IndexToPhysicalMatrix;
+  vtkMatrix4x4* PhysicalToIndexMatrix;
 
   vtkSmartPointer<vtkOpenGLRenderWindow> Context;
 

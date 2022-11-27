@@ -13,7 +13,6 @@
 
 =========================================================================*/
 #include "vtkGPUImageData.h"
-
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
 #include "vtkPointData.h"
@@ -37,6 +36,12 @@ vtkGPUImageData::vtkGPUImageData()
     this->Origin[idx] = 0.0;
     this->Spacing[idx] = 1.0;
   }
+
+  this->DirectionMatrix = vtkMatrix3x3::New();
+  this->IndexToPhysicalMatrix = vtkMatrix4x4::New();
+  this->PhysicalToIndexMatrix = vtkMatrix4x4::New();
+  this->DirectionMatrix->Identity();
+  this->ComputeTransforms();
 
   int extent[6] = { 0, -1, 0, -1, 0, -1 };
   memcpy(this->Extent, extent, 6 * sizeof(int));
@@ -65,9 +70,9 @@ void vtkGPUImageData::CopyStructure(vtkDataSet* ds)
     this->Spacing[idx] = sPts->Spacing[idx];
     this->Origin[idx] = sPts->Origin[idx];
   }
-  /*this->DirectionMatrix->DeepCopy(sPts->GetDirectionMatrix());
+  this->DirectionMatrix->DeepCopy(sPts->GetDirectionMatrix());
   this->ComputeTransforms();
-  this->SetExtent(sPts->GetExtent());*/
+  this->SetExtent(sPts->GetExtent());
 }
 
 //------------------------------------------------------------------------------
@@ -139,6 +144,10 @@ void vtkGPUImageData::PrintSelf(ostream& os, vtkIndent indent)
 // Set dimensions of structured points dataset.
 void vtkGPUImageData::SetDimensions(int i, int j, int k)
 {
+  this->Dimensions[0] = i;
+  this->Dimensions[1] = j;
+  this->Dimensions[2] = k;
+
   this->SetExtent(0, i - 1, 0, j - 1, 0, k - 1);
 }
 
@@ -146,7 +155,7 @@ void vtkGPUImageData::SetDimensions(int i, int j, int k)
 // Set dimensions of structured points dataset.
 void vtkGPUImageData::SetDimensions(const int dim[3])
 {
-  this->SetExtent(0, dim[0] - 1, 0, dim[1] - 1, 0, dim[2] - 1);
+  this->SetDimensions(dim[0], dim[1], dim[2]);
 }
 
 //------------------------------------------------------------------------------
@@ -170,6 +179,96 @@ vtkIdType vtkGPUImageData::FindCell(double x[3], vtkCell* vtkNotUsed(cell),
 {
   vtkErrorMacro("TODO");
   return -1;
+}
+
+//------------------------------------------------------------------------------
+void vtkGPUImageData::SetDirectionMatrix(vtkMatrix3x3* m)
+{
+  vtkMTimeType lastModified = this->GetMTime();
+  vtkSetObjectBodyMacro(DirectionMatrix, vtkMatrix3x3, m);
+  if (lastModified < this->GetMTime())
+  {
+    this->ComputeTransforms();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkGPUImageData::ComputeTransforms()
+{
+  vtkMatrix4x4* m4 = vtkMatrix4x4::New();
+  if (this->DirectionMatrix->IsIdentity())
+  {
+    m4->Zero();
+    m4->SetElement(0, 0, this->Spacing[0]);
+    m4->SetElement(1, 1, this->Spacing[1]);
+    m4->SetElement(2, 2, this->Spacing[2]);
+    m4->SetElement(3, 3, 1);
+  }
+  else
+  {
+    const double* m3 = this->DirectionMatrix->GetData();
+    m4->SetElement(0, 0, m3[0] * this->Spacing[0]);
+    m4->SetElement(0, 1, m3[1] * this->Spacing[1]);
+    m4->SetElement(0, 2, m3[2] * this->Spacing[2]);
+    m4->SetElement(1, 0, m3[3] * this->Spacing[0]);
+    m4->SetElement(1, 1, m3[4] * this->Spacing[1]);
+    m4->SetElement(1, 2, m3[5] * this->Spacing[2]);
+    m4->SetElement(2, 0, m3[6] * this->Spacing[0]);
+    m4->SetElement(2, 1, m3[7] * this->Spacing[1]);
+    m4->SetElement(2, 2, m3[8] * this->Spacing[2]);
+    m4->SetElement(3, 0, 0);
+    m4->SetElement(3, 1, 0);
+    m4->SetElement(3, 2, 0);
+    m4->SetElement(3, 3, 1);
+  }
+  m4->SetElement(0, 3, this->Origin[0]);
+  m4->SetElement(1, 3, this->Origin[1]);
+  m4->SetElement(2, 3, this->Origin[2]);
+
+  this->IndexToPhysicalMatrix->DeepCopy(m4);
+  vtkMatrix4x4::Invert(m4, this->PhysicalToIndexMatrix);
+  m4->Delete();
+}
+
+//------------------------------------------------------------------------------
+void vtkGPUImageData::SetDirectionMatrix(const double elements[9])
+{
+  this->SetDirectionMatrix(elements[0], elements[1], elements[2], elements[3], elements[4],
+    elements[5], elements[6], elements[7], elements[8]);
+}
+
+//------------------------------------------------------------------------------
+void vtkGPUImageData::SetDirectionMatrix(double e00, double e01, double e02, double e10, double e11,
+  double e12, double e20, double e21, double e22)
+{
+  vtkMatrix3x3* m3 = this->DirectionMatrix;
+  vtkMTimeType lastModified = m3->GetMTime();
+
+  m3->SetElement(0, 0, e00);
+  m3->SetElement(0, 1, e01);
+  m3->SetElement(0, 2, e02);
+  m3->SetElement(1, 0, e10);
+  m3->SetElement(1, 1, e11);
+  m3->SetElement(1, 2, e12);
+  m3->SetElement(2, 0, e20);
+  m3->SetElement(2, 1, e21);
+  m3->SetElement(2, 2, e22);
+
+  if (lastModified < m3->GetMTime())
+  {
+    this->ComputeTransforms();
+    this->Modified();
+  }
+}
+
+void vtkGPUImageData::TransformContinuousIndexToPhysicalPoint(double i, double j, double k,
+  double const origin[3], double const spacing[3], double const direction[9], double xyz[3])
+{
+  for (int c = 0; c < 3; ++c)
+  {
+    xyz[c] = i * spacing[0] * direction[c * 3] + j * spacing[1] * direction[c * 3 + 1] +
+      k * spacing[2] * direction[c * 3 + 2] + origin[c];
+  }
 }
 
 //----------------------------------------------------------------------------

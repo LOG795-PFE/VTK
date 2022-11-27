@@ -131,6 +131,16 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
       vtkGPUImageData* singleBlock = vtkGPUImageData::New();
       singleBlock->ShallowCopy(gpuData);
       singleBlock->SetExtent(this->FullExtent.GetData());
+
+      double spacing[3];
+      double origin[3];
+
+      gpuData->GetSpacing(spacing);
+      gpuData->GetOrigin(origin);
+
+      singleBlock->SetSpacing(spacing);
+      singleBlock->SetOrigin(origin);
+
       this->ImageDataBlocks.push_back(singleBlock);
     }
   }
@@ -138,12 +148,14 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
   // Get default formats from vtkTextureObject
   if (!this->Texture)
   {
-    this->Texture = vtkSmartPointer<vtkTextureObject>::New();
-    this->Texture->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
-
     if (gpuData)
     {
       this->Texture = vtkSmartPointer<vtkTextureObject>::Take(gpuData->GetTextureObject());
+    }
+    else
+    {
+      this->Texture = vtkSmartPointer<vtkTextureObject>::New();
+      this->Texture->SetContext(vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow()));
     }
   }
   if (rGrid)
@@ -349,23 +361,7 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
       ostate->vtkglPixelStorei(GL_UNPACK_IMAGE_HEIGHT, this->FullSize[1]);
     }
 
-    if (gpuData)
-    {
-      if (useXStride)
-      {
-        ostate->vtkglPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-      }
-
-      if (useYStride)
-      {
-        ostate->vtkglPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-      }
-
-      this->UploadTime.Modified();
-
-      return success;
-    }
-    else
+    if (!gpuData)
     {
       // Account for component offset
       // index = ( z0 * Dx * Dy + y0 * Dx + x0 ) * numComp
@@ -1014,6 +1010,7 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
 {
   vtkImageData* imData = vtkImageData::SafeDownCast(block->DataSet);
   vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(block->DataSet);
+  vtkGPUImageData* gpuData = vtkGPUImageData::SafeDownCast(block->DataSet);
   double spacing[3];
   double origin[3];
   double* direction = nullptr;
@@ -1043,6 +1040,13 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
       block->Extents[5]--;
     }
   }
+  else if (gpuData)
+  {
+    gpuData->GetSpacing(spacing);
+    gpuData->GetExtent(block->Extents);
+    gpuData->GetOrigin(origin);
+    direction = gpuData->GetDirectionMatrix()->GetData();
+  }
 
   int swapBounds[3];
   swapBounds[0] = (spacing[0] < 0);
@@ -1068,7 +1072,7 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
   {
     int* ijkCorner = ijkCorners[i];
     double* xyz = block->VolumeGeometry + i * 3;
-    if (imData)
+    if (imData || gpuData)
     {
       vtkImageData::TransformContinuousIndexToPhysicalPoint(
         ijkCorner[0], ijkCorner[1], ijkCorner[2], origin, spacing, direction, xyz);
@@ -1090,6 +1094,7 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
     if (xyz[2] > zMax)
       zMax = xyz[2];
   }
+  
   block->LoadedBoundsAA[0] = xMin;
   block->LoadedBoundsAA[1] = xMax;
   block->LoadedBoundsAA[2] = yMin;
@@ -1132,7 +1137,7 @@ void vtkVolumeTexture::ComputeBounds(VolumeBlock* block)
   // Loaded extents represent cells
   else
   {
-    if (imData)
+    if (imData || gpuData)
     {
       for (int i = 0; i < 3; ++i)
       {
