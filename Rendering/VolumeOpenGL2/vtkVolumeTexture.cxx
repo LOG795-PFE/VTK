@@ -99,7 +99,7 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
   }
   else // Single block
   {
-    if (this->IsCellData == 1)
+    if (!gpuData && this->IsCellData == 1)
     {
       this->AdjustExtentForCell(this->FullExtent);
     }
@@ -132,14 +132,17 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
       singleBlock->ShallowCopy(gpuData);
       singleBlock->SetExtent(this->FullExtent.GetData());
 
-      double spacing[3];
-      double origin[3];
+      double spacing[3] = { 0, 0, 0 };
+      double origin[3] = { 0, 0, 0 };
+      int dimensions[3] = { 0, 0, 0 };
 
       gpuData->GetSpacing(spacing);
       gpuData->GetOrigin(origin);
+      gpuData->GetDimensions(dimensions);
 
       singleBlock->SetSpacing(spacing);
       singleBlock->SetOrigin(origin);
+      singleBlock->SetDimensions(dimensions);
 
       this->ImageDataBlocks.push_back(singleBlock);
     }
@@ -1185,6 +1188,7 @@ void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
   // physical/dataset coordinates.
   vtkImageData* imData = vtkImageData::SafeDownCast(block->DataSet);
   vtkRectilinearGrid* rGrid = vtkRectilinearGrid::SafeDownCast(block->DataSet);
+  vtkGPUImageData* gpuData = vtkGPUImageData::SafeDownCast(block->DataSet);
 
   double origin[3];
   double spacing[3];
@@ -1195,6 +1199,12 @@ void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
     directionMat->DeepCopy(imData->GetDirectionMatrix()->GetData());
     imData->GetOrigin(origin);
     imData->GetSpacing(spacing);
+  }
+  else if (gpuData)
+  {
+    directionMat->DeepCopy(gpuData->GetDirectionMatrix()->GetData());
+    gpuData->GetOrigin(origin);
+    gpuData->GetSpacing(spacing);
   }
 
   auto stepsize = block->DatasetStepSize;
@@ -1212,7 +1222,7 @@ void vtkVolumeTexture::UpdateTextureToDataMatrix(VolumeBlock* block)
   }
 
   double blockOrigin[3];
-  if (imData)
+  if (imData || gpuData)
   {
     vtkImageData::TransformContinuousIndexToPhysicalPoint(block->Extents[0], block->Extents[2],
       block->Extents[4], origin, spacing, direction, blockOrigin);
