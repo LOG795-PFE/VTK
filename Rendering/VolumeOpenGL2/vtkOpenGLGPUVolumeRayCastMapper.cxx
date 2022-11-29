@@ -1479,6 +1479,7 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::UpdateSamplingDistance(
   auto input = this->Parent->GetTransformedInput(0);
   auto imData = vtkImageData::SafeDownCast(input);
   auto rectGrid = vtkRectilinearGrid::SafeDownCast(input);
+  auto gpuData = vtkImageData::SafeDownCast(input);
   auto vol = this->Parent->AssembledInputs[0].Volume;
   double cellSpacing[3];
   if (imData)
@@ -1496,6 +1497,10 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::UpdateSamplingDistance(
       cellSpacing[cc] = (bounds[2 * cc + 1] - bounds[2 * cc]) / dims[cc];
     }
   }
+  else if (gpuData)
+  {
+    gpuData->GetSpacing(cellSpacing);
+  }
 
   if (!this->Parent->AutoAdjustSampleDistances)
   {
@@ -1509,6 +1514,10 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::UpdateSamplingDistance(
       else if (rectGrid)
       {
         rectGrid->GetExtent(extents);
+      }
+      else if (gpuData)
+      {
+        gpuData->GetExtent(extents);
       }
 
       float const d =
