@@ -68,14 +68,16 @@ public:
   using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override
   {
-    int dimensions[3];
-    this->GetDimensions(dimensions);
+    vtkErrorMacro("TODO");
+    //int dimensions[3];
+    //this->GetDimensions(dimensions);
     //vtkStructuredData::GetCellPoints(cellId, ptIds, this->DataDescription, dimensions);
   }
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override
   {
-    int dimensions[3];
-    this->GetDimensions(dimensions);
+    vtkErrorMacro("TODO");
+    //int dimensions[3];
+    //this->GetDimensions(dimensions);
     //vtkStructuredData::GetPointCells(ptId, cellIds, dimensions);
   }
   int GetMaxCellSize() override { return 6; }
@@ -91,6 +93,10 @@ public:
 
   static void TransformContinuousIndexToPhysicalPoint(double i, double j, double k,
     double const origin[3], double const spacing[3], double const direction[9], double xyz[3]);
+
+  virtual void TransformIndexToPhysicalPoint(int i, int j, int k, double xyz[3]);
+
+  virtual void TransformIndexToPhysicalPoint(const int ijk[3], double xyz[3]);
 
   /**
   * Same as SetExtent(0, i-1, 0, j-1, 0, k-1)
@@ -118,6 +124,8 @@ public:
   */
   virtual void GetDimensions(int dims[3]);
   //@}
+
+  virtual void GetDimensions(vtkIdType dims[3]);
 
   //@{
   /**
@@ -187,6 +195,8 @@ protected:
   vtkMatrix3x3* DirectionMatrix;
   vtkMatrix4x4* IndexToPhysicalMatrix;
   vtkMatrix4x4* PhysicalToIndexMatrix;
+
+  int DataDescription;
 
   vtkSmartPointer<vtkOpenGLRenderWindow> Context;
 

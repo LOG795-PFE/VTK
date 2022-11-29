@@ -30,6 +30,8 @@ vtkInformationKeyMacro(vtkGPUImageData, CONTEXT_OBJECT, ObjectBase);
 //----------------------------------------------------------------------------
 vtkGPUImageData::vtkGPUImageData()
 {
+  this->DataDescription = VTK_EMPTY;
+
   for (int idx = 0; idx < 3; ++idx)
   {
     this->Dimensions[idx] = 0;
@@ -55,6 +57,18 @@ vtkGPUImageData::vtkGPUImageData()
 //----------------------------------------------------------------------------
 vtkGPUImageData::~vtkGPUImageData()
 {
+  if (this->DirectionMatrix)
+  {
+    this->DirectionMatrix->Delete();
+  }
+  if (this->IndexToPhysicalMatrix)
+  {
+    this->IndexToPhysicalMatrix->Delete();
+  }
+  if (this->PhysicalToIndexMatrix)
+  {
+    this->PhysicalToIndexMatrix->Delete();
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -100,7 +114,69 @@ vtkIdType vtkGPUImageData::GetNumberOfCells()
 //----------------------------------------------------------------------------
 // DataSet implementation
 void vtkGPUImageData::GetPoint(vtkIdType ptId, double x[3]) {
-  vtkErrorMacro("TODO");
+  const int* extent = this->Extent;
+
+  vtkIdType dims[3];
+  this->GetDimensions(dims);
+
+  x[0] = x[1] = x[2] = 0.0;
+  if (dims[0] == 0 || dims[1] == 0 || dims[2] == 0)
+  {
+    vtkErrorMacro("Requesting a point from an empty image.");
+    return;
+  }
+
+  // "loc" holds the point x,y,z indices
+  int loc[3];
+  loc[0] = loc[1] = loc[2] = 0;
+
+  switch (this->DataDescription)
+  {
+    case VTK_EMPTY:
+      return;
+
+    case VTK_SINGLE_POINT:
+      break;
+
+    case VTK_X_LINE:
+      loc[0] = ptId;
+      break;
+
+    case VTK_Y_LINE:
+      loc[1] = ptId;
+      break;
+
+    case VTK_Z_LINE:
+      loc[2] = ptId;
+      break;
+
+    case VTK_XY_PLANE:
+      loc[0] = ptId % dims[0];
+      loc[1] = ptId / dims[0];
+      break;
+
+    case VTK_YZ_PLANE:
+      loc[1] = ptId % dims[1];
+      loc[2] = ptId / dims[1];
+      break;
+
+    case VTK_XZ_PLANE:
+      loc[0] = ptId % dims[0];
+      loc[2] = ptId / dims[0];
+      break;
+
+    case VTK_XYZ_GRID:
+      loc[0] = ptId % dims[0];
+      loc[1] = (ptId / dims[0]) % dims[1];
+      loc[2] = ptId / (dims[0] * dims[1]);
+      break;
+  }
+
+  int i, j, k;
+  i = loc[0] + extent[0];
+  j = loc[1] + extent[2];
+  k = loc[2] + extent[4];
+  this->TransformIndexToPhysicalPoint(i, j, k, x);
 }
 
 //----------------------------------------------------------------------------
@@ -261,6 +337,18 @@ void vtkGPUImageData::SetDirectionMatrix(double e00, double e01, double e02, dou
   }
 }
 
+//------------------------------------------------------------------------------
+template <typename T1, typename T2>
+inline static void TransformCoordinates(
+  T1 input0, T1 input1, T1 input2, T2 output[3], vtkMatrix4x4* m4)
+{
+  double* mdata = m4->GetData();
+  output[0] = mdata[0] * input0 + mdata[1] * input1 + mdata[2] * input2 + mdata[3];
+  output[1] = mdata[4] * input0 + mdata[5] * input1 + mdata[6] * input2 + mdata[7];
+  output[2] = mdata[8] * input0 + mdata[9] * input1 + mdata[10] * input2 + mdata[11];
+}
+
+//------------------------------------------------------------------------------
 void vtkGPUImageData::TransformContinuousIndexToPhysicalPoint(double i, double j, double k,
   double const origin[3], double const spacing[3], double const direction[9], double xyz[3])
 {
@@ -269,6 +357,18 @@ void vtkGPUImageData::TransformContinuousIndexToPhysicalPoint(double i, double j
     xyz[c] = i * spacing[0] * direction[c * 3] + j * spacing[1] * direction[c * 3 + 1] +
       k * spacing[2] * direction[c * 3 + 2] + origin[c];
   }
+}
+
+//------------------------------------------------------------------------------
+void vtkGPUImageData::TransformIndexToPhysicalPoint(int i, int j, int k, double xyz[3])
+{
+  TransformCoordinates<int, double>(i, j, k, xyz, this->IndexToPhysicalMatrix);
+}
+
+//------------------------------------------------------------------------------
+void vtkGPUImageData::TransformIndexToPhysicalPoint(const int ijk[3], double xyz[3])
+{
+  TransformCoordinates<int, double>(ijk[0], ijk[1], ijk[2], xyz, this->IndexToPhysicalMatrix);
 }
 
 //----------------------------------------------------------------------------
@@ -285,6 +385,16 @@ void vtkGPUImageData::GetDimensions(int *dOut)
   dOut[0] = extent[1] - extent[0] + 1;
   dOut[1] = extent[3] - extent[2] + 1;
   dOut[2] = extent[5] - extent[4] + 1;
+}
+
+//----------------------------------------------------------------------------
+void vtkGPUImageData::GetDimensions(vtkIdType dims[3])
+{
+  // Use vtkIdType to avoid overflow on large images
+  const int* extent = this->Extent;
+  dims[0] = extent[1] - extent[0] + 1;
+  dims[1] = extent[3] - extent[2] + 1;
+  dims[2] = extent[5] - extent[4] + 1;
 }
 
 //----------------------------------------------------------------------------
