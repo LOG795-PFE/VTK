@@ -43,7 +43,7 @@ public:
   static vtkInformationObjectBaseKey* CONTEXT_OBJECT();
 
   static vtkGPUImageData* New();
-  vtkTypeMacro(vtkGPUImageData, vtkDataObject);
+  vtkTypeMacro(vtkGPUImageData, vtkDataSet);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   void CopyStructure(vtkDataSet* ds) override;
