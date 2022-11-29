@@ -77,7 +77,6 @@ void main(void) {
 
   vtkNew<vtkImageToGPUImageFilter> inputConvert;
   inputConvert->SetInputDataObject(inputImage);
-  // inputConvert->Update();
 
   vtkNew<vtkGPUSimpleImageFilter> checkerPatternGenerator;
   checkerPatternGenerator->GetShaderProperty()->SetFragmentShaderCode(cFragShader.c_str());
@@ -94,10 +93,6 @@ void main(void) {
   shaderAlgorithm->AddInputConnection(gaussianAlgorithm->GetOutputPort());
   shaderAlgorithm->AddInputConnection(checkerPatternGenerator->GetOutputPort());
   shaderAlgorithm->SetOutputScalarTypeToShort();
-
-  /*vtkNew<vtkGPUImageToImageFilter> outputConvert;
-  outputConvert->SetInputConnection(shaderAlgorithm->GetOutputPort());
-  outputConvert->Update();*/
 
   vtkNew<vtkOpenGLGPUVolumeRayCastMapper> mapper;
   mapper->SetInputConnection(shaderAlgorithm->GetOutputPort());
@@ -136,7 +131,7 @@ void main(void) {
   vtkNew<vtkRenderer> renderer;
   renderer->AddVolume(volume);
   renderer->SetBackground(colors->GetColor3d("cornflower").GetData());
-  renderer->ResetCamera();
+  // renderer->ResetCamera();
 
   vtkNew<vtkRenderWindow> renderWindow;
   renderWindow->SetSize(800, 600);
@@ -145,11 +140,9 @@ void main(void) {
 
   // Set the context of our GPUImageData
   inputConvert->SetRenderWindow(renderWindow);
-  // inputConvert->Update();
   gaussianAlgorithm->SetRenderWindow(renderWindow);
   checkerPatternGenerator->SetRenderWindow(renderWindow);
   shaderAlgorithm->SetRenderWindow(renderWindow);
-  // shaderAlgorithm->Update();
 
   vtkNew<vtkInteractorStyleTrackballCamera> style;
 
@@ -158,22 +151,22 @@ void main(void) {
   interactor->SetInteractorStyle(style);
 
   // Add some contour values to draw iso surfaces
-  // volumeProperty->GetIsoSurfaceValues()->SetValue(0, iso1);
-  // volumeProperty->GetIsoSurfaceValues()->SetValue(1, iso2);
+  volumeProperty->GetIsoSurfaceValues()->SetValue(0, iso1);
+  volumeProperty->GetIsoSurfaceValues()->SetValue(1, iso2);
 
   // Generate a good view
   vtkNew<vtkCamera> aCamera;
   aCamera->SetViewUp(0, 0, -1);
-  aCamera->SetPosition(0, -1, 0);
+  aCamera->SetPosition(0, -1000, 0);
   aCamera->SetFocalPoint(0, 0, 0);
 
   renderer->SetActiveCamera(aCamera);
-  renderer->ResetCamera();
+  // renderer->ResetCamera();
 
   aCamera->Azimuth(30.0);
   aCamera->Elevation(30.0);
   aCamera->Dolly(1.5);
-  renderer->ResetCameraClippingRange();
+  // renderer->ResetCameraClippingRange();
 
   renderWindow->Render();
 
