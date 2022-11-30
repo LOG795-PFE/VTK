@@ -30,7 +30,7 @@ vtkInformationKeyMacro(vtkGPUImageData, CONTEXT_OBJECT, ObjectBase);
 //----------------------------------------------------------------------------
 vtkGPUImageData::vtkGPUImageData()
 {
-  this->DataDescription = VTK_EMPTY;
+  this->DataDescription = VTK_XYZ_GRID;
 
   for (int idx = 0; idx < 3; ++idx)
   {

@@ -70,6 +70,7 @@ void main(void) {
     return EXIT_FAILURE;
   }
 
+  // Setup Pipeline
   vtkNew<vtkMetaImageReader> reader;
   reader->SetFileName(argv[1]);
   reader->Update();
@@ -100,6 +101,7 @@ void main(void) {
   mapper->SetSampleDistance(0.5);
   mapper->SetBlendModeToIsoSurface();
 
+  // Setup Volume properties for isosurface colors
   if (argc > 3)
   {
     iso1 = atof(argv[2]);
@@ -124,52 +126,54 @@ void main(void) {
   volumeProperty->SetColor(colorTransferFunction);
   volumeProperty->SetScalarOpacity(scalarOpacity);
 
+  // Add some contour values to draw iso surfaces
+  volumeProperty->GetIsoSurfaceValues()->SetValue(0, iso1);
+  volumeProperty->GetIsoSurfaceValues()->SetValue(1, iso2);
+
   vtkNew<vtkVolume> volume;
   volume->SetMapper(mapper);
   volume->SetProperty(volumeProperty);
 
+  // Setup Renderer
   vtkNew<vtkRenderer> renderer;
   renderer->AddVolume(volume);
   renderer->SetBackground(colors->GetColor3d("cornflower").GetData());
-  // renderer->ResetCamera();
 
+  // Setup RenderWindow
   vtkNew<vtkRenderWindow> renderWindow;
   renderWindow->SetSize(800, 600);
   renderWindow->AddRenderer(renderer);
   renderWindow->SetWindowName("RayCastIsosurface");
 
   // Set the context of our GPUImageData
+  // Those will execute an offscreen render
   inputConvert->SetRenderWindow(renderWindow);
   gaussianAlgorithm->SetRenderWindow(renderWindow);
   checkerPatternGenerator->SetRenderWindow(renderWindow);
   shaderAlgorithm->SetRenderWindow(renderWindow);
 
-  vtkNew<vtkInteractorStyleTrackballCamera> style;
-
+  // Setup interactor
   vtkNew<vtkRenderWindowInteractor> interactor;
   interactor->SetRenderWindow(renderWindow);
+  vtkNew<vtkInteractorStyleTrackballCamera> style;
   interactor->SetInteractorStyle(style);
 
-  // Add some contour values to draw iso surfaces
-  volumeProperty->GetIsoSurfaceValues()->SetValue(0, iso1);
-  volumeProperty->GetIsoSurfaceValues()->SetValue(1, iso2);
+  /* Start the renderWindow to init OpenGL before ResetCamera
+  since we need it to create Textures, necessary to compute
+  the volume's bounding box and properly execute ResetCamera()
+  */
+  renderWindow->Start();
+
+  // Setup a camera
+  vtkNew<vtkCamera> aCamera;
+  renderer->SetActiveCamera(aCamera);
 
   // Generate a good view
-  vtkNew<vtkCamera> aCamera;
-  aCamera->SetViewUp(0, 0, -1);
-  aCamera->SetPosition(0, -1000, 0);
-  aCamera->SetFocalPoint(0, 0, 0);
+  aCamera->SetViewUp(0, -1, 0);
+  renderer->ResetCamera();
+  renderer->ResetCameraClippingRange();
 
-  renderer->SetActiveCamera(aCamera);
-  // renderer->ResetCamera();
-
-  aCamera->Azimuth(30.0);
-  aCamera->Elevation(30.0);
-  aCamera->Dolly(1.5);
-  // renderer->ResetCameraClippingRange();
-
-  renderWindow->Render();
-
+  // Start interactor
   interactor->Start();
 
   return EXIT_SUCCESS;
