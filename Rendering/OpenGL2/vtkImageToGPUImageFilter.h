@@ -42,7 +42,7 @@ class VTKRENDERINGOPENGL2_EXPORT vtkImageToGPUImageFilter : public vtkAlgorithm
 public:
   static vtkImageToGPUImageFilter *New();
   vtkTypeMacro(vtkImageToGPUImageFilter, vtkAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -60,7 +60,7 @@ public:
   */
   int ProcessRequest(vtkInformation*,
                      vtkInformationVector**,
-                     vtkInformationVector*) VTK_OVERRIDE;
+                     vtkInformationVector*) override;
 
   //@{
   /**
@@ -89,7 +89,7 @@ public:
 
  protected:
   vtkImageToGPUImageFilter();
-  ~vtkImageToGPUImageFilter() VTK_OVERRIDE;
+  ~vtkImageToGPUImageFilter() override;
 
   int RequestInformation(vtkInformation *,
     vtkInformationVector **,

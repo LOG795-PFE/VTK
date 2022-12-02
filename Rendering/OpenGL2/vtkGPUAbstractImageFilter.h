@@ -42,7 +42,7 @@ class VTKRENDERINGOPENGL2_EXPORT vtkGPUAbstractImageFilter : public vtkAlgorithm
 public:
   static vtkGPUAbstractImageFilter *New();
   vtkTypeMacro(vtkGPUAbstractImageFilter, vtkAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   /**
@@ -60,7 +60,7 @@ public:
   */
   int ProcessRequest(vtkInformation*,
                      vtkInformationVector**,
-                     vtkInformationVector*) VTK_OVERRIDE;
+                     vtkInformationVector*) override;
 
   /**
   * Subclasses can reimplement this method to translate the update
@@ -159,7 +159,7 @@ public:
 
  protected:
   vtkGPUAbstractImageFilter();
-  ~vtkGPUAbstractImageFilter() VTK_OVERRIDE;
+  ~vtkGPUAbstractImageFilter() override;
 
   int RequestInformation(vtkInformation *,
     vtkInformationVector **,

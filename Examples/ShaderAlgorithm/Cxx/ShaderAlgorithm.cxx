@@ -13,6 +13,7 @@
 #include <vtkOpenGLShaderProperty.h>
 #include <vtkUniforms.h>
 
+#include <vtkGPUAbstractImageFilter.h>
 #include <vtkImageToGPUImageFilter.h>
 #include <vtkGPUSimpleImageFilter.h>
 #include <vtkGPUImageToImageFilter.h>

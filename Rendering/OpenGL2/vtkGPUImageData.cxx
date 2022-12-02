@@ -157,7 +157,7 @@ int vtkGPUImageData::GetScalarType()
 {
   if (!this->TextureObject)
   {
-    vtkErrorMacro("TODO")
+    vtkErrorMacro("TODO");
     return -1;
   }
   return this->TextureObject->GetVTKDataType();

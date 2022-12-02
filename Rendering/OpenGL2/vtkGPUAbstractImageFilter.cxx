@@ -375,13 +375,18 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
   vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
   vtkOpenGLState* ostate = this->RenderWindow->GetState();
+  ostate->PushFramebufferBindings();
+  fbo->Bind();
 
   // now create the framebuffer for the output
   for (int i = 0; i < outputGPUImages.size(); ++i)
   {
-    fbo->AddColorAttachment(fbo->GetDrawMode(), i, outputGPUImages[i]->GetTextureObject(), 0);
+    fbo->AddColorAttachment(i, outputGPUImages[i]->GetTextureObject(), 0);
   }
+
+  fbo->AddDepthAttachment(); 
   fbo->ActivateDrawBuffer(0);
+  
   fbo->StartNonOrtho(outputDimensions[0], outputDimensions[1]);
   ostate->vtkglViewport(0, 0, outputDimensions[0], outputDimensions[1]);
   ostate->vtkglScissor(0, 0, outputDimensions[0], outputDimensions[1]);
@@ -438,8 +443,8 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
 
     for (int i = 0; i < outputGPUImages.size(); ++i)
     {
-      fbo->RemoveColorAttachment(fbo->GetDrawMode(), i);
-      fbo->AddColorAttachment(fbo->GetDrawMode(), i, outputGPUImages[i]->GetTextureObject(), textureSliceIndex);
+      fbo->RemoveColorAttachment(i);
+      fbo->AddColorAttachment(i, outputGPUImages[i]->GetTextureObject(), textureSliceIndex);
     }
 
     const char* error;

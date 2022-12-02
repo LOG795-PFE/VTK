@@ -1,28 +1,33 @@
 cmake_minimum_required(VERSION 3.3...3.12 FATAL_ERROR)
-
-
 PROJECT (ShaderAlgorithm)
 
-if(NOT VTK_SOURCE_DIR)
-  message(ERROR " Cannot build ShaderAlgorithm examples without VTK_SOURCE_DIR")
-endif()
-find_package(VTK REQUIRED)
-vtk_module_config(VTK
-  vtkCommonCore
-  vtkFiltersSources
-  vtkInteractionStyle
-  vtkRenderingOpenGL2
-  vtkInteractionImage
-  vtkIOImage
-  vtkImagingColor
+find_package(VTK 
+    COMPONENTS
+        CommonCore
+        FiltersSources
+        InteractionStyle
+        RenderingCore
+        RenderingOpenGL2
+        InteractionImage
+        IOImage
+        ImagingColor
+        vtksys
 )
-include(${VTK_USE_FILE})
+if (NOT VTK_FOUND)
+  message("Skipping example: ${VTK_NOT_FOUND_MESSAGE}")
+  return ()
+endif ()
+
+add_executable(ShaderAlgorithm MACOSX_BUNDLE
+    ShaderAlgorithm.cxx)
+target_link_libraries(ShaderAlgorithm
+    PRIVATE
+        ${VTK_LIBRARIES})
 
 set(RENDERING_EXAMPLES_SRCS
   ShaderAlgorithm
   )
 
-foreach(name ${RENDERING_EXAMPLES_SRCS})
-  add_executable(${name} MACOSX_BUNDLE ${name}.cxx)
-  target_link_libraries(${name} ${VTK_LIBRARIES} )
-endforeach()
+vtk_module_autoinit(
+  TARGETS ShaderAlgorithm
+  MODULES ${VTK_LIBRARIES})

@@ -30,11 +30,11 @@ class VTKRENDERINGOPENGL2_EXPORT vtkGPUImageGaussianFilter : public vtkGPUAbstra
 public:
   static vtkGPUImageGaussianFilter *New();
   vtkTypeMacro(vtkGPUImageGaussianFilter, vtkGPUAbstractImageFilter);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
  protected:
   vtkGPUImageGaussianFilter();
-  ~vtkGPUImageGaussianFilter() VTK_OVERRIDE;
+  ~vtkGPUImageGaussianFilter() override;
 
  private:
   vtkGPUImageGaussianFilter(const vtkGPUImageGaussianFilter&) = delete;
