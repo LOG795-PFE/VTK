@@ -215,7 +215,6 @@ int vtkImageToGPUImageFilter::RequestData(
   outputGPUImage->SetOrigin(origin);
   outputGPUImage->SetDimensions(dimensions);
 
-
   if (!outputGPUImage->AllocateScalarsFromPointer(inputImage->GetScalarType(), inputImage->GetNumberOfScalarComponents(), inputImage->GetScalarPointer()))
   {
     return 0;

@@ -29,6 +29,7 @@
 #include "vtkMatrix3x3.h"
 #include "vtkMatrix4x4.h"
 #include "vtkInformationObjectBaseKey.h"
+#include "vtkInformationDoubleVectorKey.h"
 #include "vtkSmartPointer.h"
 #include "vtkTextureObject.h"
 
@@ -41,6 +42,7 @@ class VTKRENDERINGOPENGL2_EXPORT vtkGPUImageData : public vtkDataSet
 public:
 
   static vtkInformationObjectBaseKey* CONTEXT_OBJECT();
+  static vtkInformationDoubleVectorKey* SCALAR_RANGE();
 
   static vtkGPUImageData* New();
   vtkTypeMacro(vtkGPUImageData, vtkDataSet);
@@ -127,6 +129,10 @@ public:
 
   virtual void GetDimensions(vtkIdType dims[3]);
 
+  virtual double* GetScalarRange() { return this->ScalarRange; };
+
+  virtual void SetScalarRange(double range[2]);
+
   //@{
   /**
   * Set the spacing (width,height,length) of the cubical cells that
@@ -190,6 +196,7 @@ protected:
 
   double Origin[3];
   double Spacing[3];
+  double ScalarRange[2];
   int Extent[6];
   int Dimensions[3];
   vtkMatrix3x3* DirectionMatrix;

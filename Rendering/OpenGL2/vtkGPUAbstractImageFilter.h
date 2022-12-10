@@ -212,6 +212,9 @@ public:
   int OutputExtent[6];
   bool OutputExtentSpecified;
 
+  double OutputScalarRange[2];
+  bool OutputScalarRangeSpecified;
+
   int NumberOfComponents;
 
   std::string DefaultVertexShaderSource;

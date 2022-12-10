@@ -26,6 +26,7 @@
 vtkStandardNewMacro(vtkGPUImageData);
 
 vtkInformationKeyMacro(vtkGPUImageData, CONTEXT_OBJECT, ObjectBase);
+vtkInformationKeyMacro(vtkGPUImageData, SCALAR_RANGE, DoubleVector);
 
 //----------------------------------------------------------------------------
 vtkGPUImageData::vtkGPUImageData()
@@ -398,6 +399,15 @@ void vtkGPUImageData::GetDimensions(vtkIdType dims[3])
 }
 
 //----------------------------------------------------------------------------
+void vtkGPUImageData::SetScalarRange(double range[2])
+{
+  for (int i = 0; i < 2; i++)
+  {
+    this->ScalarRange[i] = range[i];
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkGPUImageData::SetContext(vtkOpenGLRenderWindow* renWin)
 {
   if (this->TextureObject)
@@ -529,6 +539,10 @@ void vtkGPUImageData::CopyInformationFromPipeline(vtkInformation* info)
   {
     this->SetOrigin(info->Get(vtkDataObject::ORIGIN()));
   }
+  if (info->Has(vtkGPUImageData::SCALAR_RANGE()))
+  {
+    this->SetScalarRange(info->Get(vtkGPUImageData::SCALAR_RANGE()));
+  }
   if (info->Has(vtkGPUImageData::CONTEXT_OBJECT()))
   {
     vtkOpenGLRenderWindow* contextObject = vtkOpenGLRenderWindow::SafeDownCast(info->Get(vtkGPUImageData::CONTEXT_OBJECT()));
@@ -541,6 +555,7 @@ void vtkGPUImageData::CopyInformationToPipeline(vtkInformation* info)
 {
   info->Set(vtkDataObject::SPACING(), this->Spacing, 3);
   info->Set(vtkDataObject::ORIGIN(), this->Origin, 3);
+  info->Set(vtkGPUImageData::SCALAR_RANGE(), this->ScalarRange, 2);
   if (this->GetContext())
   {
     info->Set(vtkGPUImageData::CONTEXT_OBJECT(), this->GetContext());

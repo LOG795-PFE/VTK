@@ -43,9 +43,13 @@ public:
 
   vtkGetMacro(ShaderProperty, vtkOpenGLShaderProperty*);
 
-  void SetOutputExtent(int extent[6]);
+  void SetOutputExtent(int extent[6]);  
   vtkGetVector6Macro(OutputExtent, int);
   void ClearOutputExtent();
+
+  void SetOutputScalarRange(double range[2]);
+  vtkGetVector2Macro(OutputScalarRange, double);
+  void ClearOutputScalarRange();
 
  protected:
   vtkGPUSimpleImageFilter();

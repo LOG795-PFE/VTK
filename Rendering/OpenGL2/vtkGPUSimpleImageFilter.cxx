@@ -40,6 +40,17 @@ void vtkGPUSimpleImageFilter::SetOutputExtent(int extent[6])
 }
 
 // ----------------------------------------------------------------------------
+void vtkGPUSimpleImageFilter::SetOutputScalarRange(double range[2]) 
+{
+  for (int i = 0; i<2; ++i)
+  {
+    this->OutputScalarRange[i] = range[i];
+  }
+  this->OutputScalarRangeSpecified = true;
+  this->Modified();
+}
+
+// ----------------------------------------------------------------------------
 void vtkGPUSimpleImageFilter::ClearOutputExtent()
 {
   for (int i = 0; i < 6; ++i)

@@ -72,11 +72,17 @@ void main(void)
     this->OutputExtent[i + 1] = -1;
   }
 
+  for (int i = 0; i < 2; ++i)
+  {
+    this->OutputScalarRange[i] = 0;
+  }
+
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(1);
   this->OutputScalarType = VTK_FLOAT;
   this->RenderWindow = nullptr;
   this->OutputExtentSpecified = false;
+  this->OutputScalarRangeSpecified = false;
   this->NumberOfComponents = 1;
 
   this->ShaderProperty->AddObserver(vtkCommand::ModifiedEvent, this, &vtkGPUAbstractImageFilter::ShaderPropertyModifed);
@@ -212,6 +218,11 @@ int vtkGPUAbstractImageFilter::RequestInformation(
     if (this->OutputExtentSpecified)
     {
       outInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), this->OutputExtent, 6);
+    }
+
+    if (this->OutputScalarRangeSpecified)
+    {
+      outInfo->Set(vtkGPUImageData::SCALAR_RANGE(), this->OutputScalarRange, 2);
     }
 
     if (!this->RenderWindow && outInfo && outInfo->Has(vtkGPUImageData::CONTEXT_OBJECT()))

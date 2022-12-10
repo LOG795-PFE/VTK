@@ -236,6 +236,8 @@ private:
   void SelectTextureFormat(unsigned int& format, unsigned int& internalFormat, int& type,
     int const scalarType, int const noOfComponents);
 
+  void CacheScalarRanges(int const noOfComponents);
+
   /**
    * Clean-up any acquired host side resources (image blocks, etc.).
    */

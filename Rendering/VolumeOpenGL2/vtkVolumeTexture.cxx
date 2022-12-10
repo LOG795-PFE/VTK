@@ -183,6 +183,33 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
     this->Texture->GetDefaultInternalFormat(scalarType, noOfComponents, false);
   int type = this->Texture->GetDefaultDataType(scalarType);
 
+  // Cache the scalar range.
+  // 
+  if (gpuData)
+  {
+    const double* scalarRange = gpuData->GetScalarRange();
+    const double range[4][2] = {
+      { scalarRange[0], scalarRange[1] },
+      { 0, 0 },
+      { 0, 0 },
+      { 0, 0 },
+    };
+
+    this->ScalarRange;
+
+    for (int i = 0; i < noOfComponents; i++)
+    {
+      for (int j = 0; j < 2; j++)
+      {
+        this->ScalarRange[i][j] = range[i][j];
+      }
+    }
+  }
+  else
+  {
+    this->CacheScalarRanges(noOfComponents);
+  }
+
   // Resolve the appropriate texture format from the array properties
   this->SelectTextureFormat(format, internalFormat, type, scalarType, noOfComponents);
   this->CreateBlocks(format, internalFormat, type);
@@ -845,17 +872,6 @@ void vtkVolumeTexture::SelectTextureFormat(unsigned int& format, unsigned int& i
       break;
   }
 
-  double tmp_range[2] = { 0, 1 };
-
-  // Cache the array's scalar range
-  for (int n = 0; n < noOfComponents; ++n)
-  {
-    for (int i = 0; i < 2; ++i)
-    {
-      this->ScalarRange[n][i] = static_cast<float>(tmp_range[i]);
-    }
-  }
-
   // Pixel Transfer NI to LUT Tex.Coord. [0, 1]
   //
   // NP = P * scale + bias
@@ -867,6 +883,19 @@ void vtkVolumeTexture::SelectTextureFormat(unsigned int& format, unsigned int& i
   for (int n = 0; n < components; n++)
   {
     this->GetScaleAndBias(scalarType, this->ScalarRange[n], this->Scale[n], this->Bias[n]);
+  }
+}
+
+void vtkVolumeTexture::CacheScalarRanges(int const noOfComponents)
+{
+  // Cache the array's scalar range
+  for (int n = 0; n < noOfComponents; ++n)
+  {
+    double* range = this->Scalars->GetFiniteRange(n);
+    for (int i = 0; i < 2; ++i)
+    {
+      this->ScalarRange[n][i] = static_cast<float>(range[i]);
+    }
   }
 }
 
