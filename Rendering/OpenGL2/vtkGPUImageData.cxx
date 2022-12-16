@@ -270,6 +270,92 @@ void vtkGPUImageData::SetDirectionMatrix(vtkMatrix3x3* m)
 }
 
 //------------------------------------------------------------------------------
+void vtkGPUImageData::ComputeBounds()
+{
+  if (this->GetMTime() <= this->ComputeTime)
+  {
+    return;
+  }
+  const int* extent = this->Extent;
+
+  if (extent[0] > extent[1] || extent[2] > extent[3] || extent[4] > extent[5])
+  {
+    vtkMath::UninitializeBounds(this->Bounds);
+  }
+  else
+  {
+    if (this->DirectionMatrix->IsIdentity())
+    {
+      // Direction is identity: bounds are easy to compute
+      // with only origin and spacing
+      const double* origin = this->Origin;
+      const double* spacing = this->Spacing;
+      int swapXBounds = (spacing[0] < 0); // 1 if true, 0 if false
+      int swapYBounds = (spacing[1] < 0); // 1 if true, 0 if false
+      int swapZBounds = (spacing[2] < 0); // 1 if true, 0 if false
+
+      this->Bounds[0] = origin[0] + (extent[0 + swapXBounds] * spacing[0]);
+      this->Bounds[2] = origin[1] + (extent[2 + swapYBounds] * spacing[1]);
+      this->Bounds[4] = origin[2] + (extent[4 + swapZBounds] * spacing[2]);
+
+      this->Bounds[1] = origin[0] + (extent[1 - swapXBounds] * spacing[0]);
+      this->Bounds[3] = origin[1] + (extent[3 - swapYBounds] * spacing[1]);
+      this->Bounds[5] = origin[2] + (extent[5 - swapZBounds] * spacing[2]);
+    }
+    else
+    {
+      // Direction isn't identity: use IndexToPhysical matrix
+      // to determine the position of the dataset corners
+      int iMin, iMax, jMin, jMax, kMin, kMax;
+      iMin = extent[0];
+      iMax = extent[1];
+      jMin = extent[2];
+      jMax = extent[3];
+      kMin = extent[4];
+      kMax = extent[5];
+      int ijkCorners[8][3] = {
+        { iMin, jMin, kMin },
+        { iMax, jMin, kMin },
+        { iMin, jMax, kMin },
+        { iMax, jMax, kMin },
+        { iMin, jMin, kMax },
+        { iMax, jMin, kMax },
+        { iMin, jMax, kMax },
+        { iMax, jMax, kMax },
+      };
+
+      double xyz[3];
+      double xMin, xMax, yMin, yMax, zMin, zMax;
+      xMin = yMin = zMin = VTK_DOUBLE_MAX;
+      xMax = yMax = zMax = VTK_DOUBLE_MIN;
+      for (int* ijkCorner : ijkCorners)
+      {
+        this->TransformIndexToPhysicalPoint(ijkCorner, xyz);
+        if (xyz[0] < xMin)
+          xMin = xyz[0];
+        if (xyz[0] > xMax)
+          xMax = xyz[0];
+        if (xyz[1] < yMin)
+          yMin = xyz[1];
+        if (xyz[1] > yMax)
+          yMax = xyz[1];
+        if (xyz[2] < zMin)
+          zMin = xyz[2];
+        if (xyz[2] > zMax)
+          zMax = xyz[2];
+      }
+      this->Bounds[0] = xMin;
+      this->Bounds[1] = xMax;
+      this->Bounds[2] = yMin;
+      this->Bounds[3] = yMax;
+      this->Bounds[4] = zMin;
+      this->Bounds[5] = zMax;
+    }
+  }
+  this->ComputeTime.Modified();
+}
+
+//------------------------------------------------------------------------------
 void vtkGPUImageData::ComputeTransforms()
 {
   vtkMatrix4x4* m4 = vtkMatrix4x4::New();
@@ -401,10 +487,8 @@ void vtkGPUImageData::GetDimensions(vtkIdType dims[3])
 //----------------------------------------------------------------------------
 void vtkGPUImageData::SetScalarRange(double range[2])
 {
-  for (int i = 0; i < 2; i++)
-  {
-    this->ScalarRange[i] = range[i];
-  }
+  this->ScalarRange[0] = range[0];
+  this->ScalarRange[1] = range[1];
 }
 
 //----------------------------------------------------------------------------

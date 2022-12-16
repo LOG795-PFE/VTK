@@ -91,6 +91,7 @@ public:
   virtual void SetDirectionMatrix(double e00, double e01, double e02, double e10,
     double e11, double e12, double e20, double e21, double e22);
 
+  void ComputeBounds() override;
   void ComputeTransforms();
 
   static void TransformContinuousIndexToPhysicalPoint(double i, double j, double k,
