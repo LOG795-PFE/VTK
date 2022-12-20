@@ -460,6 +460,8 @@ int vtkGPUAbstractImageFilter::Execute(std::vector<vtkGPUImageData*> inputGPUIma
       this->Quad.Program, this->Quad.VAO);
   }
 
+  ostate->PopFramebufferBindings();
+
   return 1;
 }
 

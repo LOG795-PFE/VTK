@@ -1,3 +1,4 @@
+#include <vtkCallbackCommand.h>
 #include <vtkCamera.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkContourValues.h>
@@ -19,6 +20,12 @@
 #include <vtkUniforms.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
+
+namespace
+{
+void CallbackFunction(
+  vtkObject* caller, long unsigned int eventId, void* clientData, void* callData);
+}
 
 int main(int argc, char* argv[])
 {
@@ -77,12 +84,10 @@ void main(void) {
 
   vtkNew<vtkImageToGPUImageFilter> inputConvert;
   inputConvert->SetInputDataObject(inputImage);
-  inputConvert->Update();
 
   vtkNew<vtkGPUSimpleImageFilter> checkerPatternGenerator;
   checkerPatternGenerator->GetShaderProperty()->SetFragmentShaderCode(cFragShader.c_str());
   checkerPatternGenerator->SetOutputExtent(inputImage->GetExtent());
-  checkerPatternGenerator->SetRenderWindow(inputConvert->GetRenderWindow());
   vtkOpenGLShaderProperty* property = checkerPatternGenerator->GetShaderProperty();
   property->GetFragmentCustomUniforms()->SetUniformi("boxSize", 10);
 
@@ -98,7 +103,6 @@ void main(void) {
 
   vtkNew<vtkGPUImageToImageFilter> outputConvert;
   outputConvert->SetInputConnection(shaderAlgorithm->GetOutputPort());
-  outputConvert->Update();
 
   vtkNew<vtkOpenGLGPUVolumeRayCastMapper> mapper;
   mapper->SetInputConnection(outputConvert->GetOutputPort());
@@ -137,7 +141,6 @@ void main(void) {
   vtkNew<vtkRenderer> renderer;
   renderer->AddVolume(volume);
   renderer->SetBackground(colors->GetColor3d("cornflower").GetData());
-  renderer->ResetCamera();
 
   vtkNew<vtkRenderWindow> renderWindow;
   renderWindow->SetSize(800, 600);
@@ -154,23 +157,60 @@ void main(void) {
   volumeProperty->GetIsoSurfaceValues()->SetValue(0, iso1);
   volumeProperty->GetIsoSurfaceValues()->SetValue(1, iso2);
 
+  // Set the context of our GPUImageData
+  inputConvert->SetRenderWindow(renderWindow);
+  gaussianAlgorithm->SetRenderWindow(renderWindow);
+  checkerPatternGenerator->SetRenderWindow(renderWindow);
+  shaderAlgorithm->SetRenderWindow(renderWindow);
+
+  /* Start the renderWindow to init OpenGL before ResetCamera
+  since we need it to create Textures, necessary to compute
+  the volume's bounding box and properly execute ResetCamera()
+  */
+  renderWindow->Start();
+
   // Generate a good view
   vtkNew<vtkCamera> aCamera;
-  aCamera->SetViewUp(0, 0, -1);
-  aCamera->SetPosition(0, -1, 0);
-  aCamera->SetFocalPoint(0, 0, 0);
-
   renderer->SetActiveCamera(aCamera);
-  renderer->ResetCamera();
 
-  aCamera->Azimuth(30.0);
-  aCamera->Elevation(30.0);
-  aCamera->Dolly(1.5);
+  // Generate a good view
+  aCamera->SetViewUp(0, -1, 0);
+  renderer->ResetCamera();
+  aCamera->Azimuth(45);
   renderer->ResetCameraClippingRange();
 
-  renderWindow->Render();
+  vtkNew<vtkCallbackCommand> callback;
+  callback->SetCallback(CallbackFunction);
+  renderer->AddObserver(vtkCommand::EndEvent, callback);
 
-  interactor->Start();
+  for (int i = 0; i < 100; i++)
+  {
+    for (int boxSize = 10; boxSize < 12; boxSize++)
+    {
+      aCamera->Azimuth(1);
+      property->GetFragmentCustomUniforms()->SetUniformi("boxSize", boxSize);
+      renderWindow->Render();
+    }
+  }
+
+  // renderWindow->Render();
+
+  // interactor->Start();
 
   return EXIT_SUCCESS;
 }
+
+namespace
+{
+void CallbackFunction(vtkObject* caller, long unsigned int vtkNotUsed(eventId),
+  void* vtkNotUsed(clientData), void* vtkNotUsed(callData))
+{
+  vtkRenderer* renderer = static_cast<vtkRenderer*>(caller);
+
+  double timeInSeconds = renderer->GetLastRenderTimeInSeconds();
+  double fps = 1.0 / timeInSeconds;
+  std::cout << "FPS: " << fps << std::endl;
+
+  std::cout << "Callback" << std::endl;
+}
+} // namespace
